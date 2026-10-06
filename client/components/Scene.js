@@ -1,4 +1,4 @@
-// Fixed animated background that cross-fades between night and day.
+// Fixed animated background that cross-fades between night (red moon) and day (dusk amber).
 export default function Scene({ day }) {
   return (
     <div className="scene" aria-hidden="true">
@@ -9,9 +9,8 @@ export default function Scene({ day }) {
       </div>
       <div className={`scene-layer day-sky ${day ? 'on' : ''}`}>
         <div className="sun" />
-        <div className="cloud c1" />
-        <div className="cloud c2" />
       </div>
+      <div className="embers" />
       <div className="vignette" />
     </div>
   );

@@ -10,7 +10,7 @@ export const metadata = {
   openGraph: { title: 'Mafia', description: 'Play Mafia with friends in your browser.' },
 };
 
-export const viewport = { width: 'device-width', initialScale: 1, themeColor: '#0b0c1a' };
+export const viewport = { width: 'device-width', initialScale: 1, themeColor: '#070405' };
 
 export default function RootLayout({ children }) {
   return (

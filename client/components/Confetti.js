@@ -1,4 +1,4 @@
-const COLORS = ['#f5c542', '#e5484d', '#3dd68c', '#5b9cf6', '#c084fc', '#ffffff'];
+const COLORS = ['#d3202a', '#8f1219', '#e0a84a', '#f1e9e4', '#ffffff'];
 
 export default function Confetti() {
   const pieces = Array.from({ length: 70 }, (_, i) => ({
