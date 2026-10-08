@@ -1,6 +1,7 @@
 const { assignRoles, MIN_PLAYERS } = require('./roles');
 const { winCheck } = require('./winCheck');
 const actions = require('./actions');
+const bots = require('./bots');
 
 const scale = Number(process.env.TIMER_SCALE) || 1; // set small in tests
 
@@ -31,14 +32,11 @@ function setPhase(room, phase, ctx) {
   if (phase === 'NIGHT') {
     room.day += 1;
     actions.resetNight(room);
-    scheduleBots(room, ctx);
   }
-  if (phase === 'VOTING') {
-    actions.resetVotes(room);
-    scheduleBots(room, ctx);
-  }
+  if (phase === 'VOTING') actions.resetVotes(room);
   ctx.onPhase(room);
   ctx.onChange(room);
+  bots.schedule(room, ctx, { scale, after: (r) => { checkEarlyEnd(r, ctx); ctx.onChange(r); } });
 }
 
 function startGame(room, ctx) {
@@ -50,6 +48,8 @@ function startGame(room, ctx) {
     p.checks = [];
   });
   room.day = 0;
+  room.startedAt = Date.now();
+  room.claims = [];
   room.result = null;
   room.winner = null;
   room.chat = [];
@@ -142,27 +142,6 @@ function backToLobby(room, ctx) {
   });
   ctx.onPhase(room);
   ctx.onChange(room);
-}
-
-// Debug mode: bots act randomly so one person can test alone.
-function scheduleBots(room, ctx) {
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  for (const bot of room.players.filter((p) => p.bot && p.alive)) {
-    const delay = (2000 + Math.random() * 8000) * scale;
-    room.botTimers.push(
-      setTimeout(() => {
-        const alive = room.players.filter((p) => p.alive && p.id !== bot.id);
-        if (room.phase === 'NIGHT' && actions.NIGHT_ROLES.includes(bot.role)) {
-          const targets = bot.role === 'MAFIA' ? alive.filter((p) => p.role !== 'MAFIA') : alive;
-          if (targets.length) actions.submitNightAction(room, bot.id, pick(targets).id);
-        } else if (room.phase === 'VOTING') {
-          actions.castVote(room, bot.id, pick(alive).id);
-        }
-        checkEarlyEnd(room, ctx);
-        ctx.onChange(room);
-      }, delay)
-    );
-  }
 }
 
 module.exports = { startGame, setPhase, checkEarlyEnd, backToLobby, clearTimers, DURATIONS };

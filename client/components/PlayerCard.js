@@ -15,6 +15,7 @@ export default function PlayerCard({ player, isYou, isHost, selected, onClick, d
   return (
     <button
       type="button"
+      data-tilt={interactive ? 8 : undefined}
       className={`player ${compact ? 'compact' : ''} ${dead ? 'dead' : ''} ${selected ? 'selected' : ''} ${interactive ? 'pickable' : ''}`}
       onClick={onClick}
       disabled={!interactive}

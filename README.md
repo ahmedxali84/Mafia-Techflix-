@@ -15,7 +15,7 @@ Test alone: create a room and press **Add bots (debug)** in the lobby, then Star
 
 ## Stats (optional, MongoDB)
 
-Copy `server/.env.example` to `server/.env` and set `MONGODB_URI` (Atlas). Without it the game works, just without stats. Stats are tied to the browser's saved player id (no login). Endpoints: `GET /leaderboard`, `GET /stats/:playerId`; client page `/leaderboard`.
+No database: each player's stats (games, wins, per-role record) are saved in their own browser's localStorage when a game ends. Client page `/stats`.
 
 ## Tests
 

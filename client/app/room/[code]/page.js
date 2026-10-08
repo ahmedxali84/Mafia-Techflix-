@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useRoom } from '@/lib/useRoom';
 import { emit, setName, socket } from '@/lib/socket';
 import { play } from '@/lib/sound';
+import { recordGame } from '@/lib/stats';
 import Timer from '@/components/Timer';
 import Chat from '@/components/Chat';
 import VoteList from '@/components/VoteList';
@@ -46,7 +47,10 @@ export default function RoomPage() {
     else if (phase === 'NIGHT') play('night');
     else if (phase === 'DAY_RESULT') play(r?.killedId ? 'death' : r?.saved ? 'saved' : 'day');
     else if (phase === 'VOTE_RESULT' && r?.eliminatedId) play('death');
-    else if (phase === 'GAME_OVER') play(state.winner === state.you.team ? 'win' : 'lose');
+    else if (phase === 'GAME_OVER') {
+      play(state.winner === state.you.team ? 'win' : 'lose');
+      recordGame(state);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, state?.day]);
 
@@ -69,11 +73,11 @@ export default function RoomPage() {
       <main className="screen">
         <Scene day={false} />
         <div className="home">
-          <div className="card glass center">
+          <div className="card glass center" data-tilt="3">
             <div className="big-emoji">🚪</div>
             <h2>Can’t join {code}</h2>
             <p className="error">{error}</p>
-            <Link className="btn primary" href="/">Back home</Link>
+            <Link className="btn primary" href="/play">Back to tables</Link>
           </div>
         </div>
       </main>
@@ -84,7 +88,7 @@ export default function RoomPage() {
     return (
       <main className="screen">
         <Scene day={false} />
-        <div className="home"><div className="card glass center"><div className="spinner" /><p className="muted">Connecting to room {code}…</p></div></div>
+        <div className="home"><div className="card glass center" data-tilt="3"><div className="spinner" /><p className="muted">Connecting to room {code}…</p></div></div>
       </main>
     );
   }
@@ -150,7 +154,7 @@ function NamePrompt({ code, onSubmit }) {
     <main className="screen">
       <Scene day={false} />
       <div className="home">
-        <form className="card glass center" onSubmit={(e) => { e.preventDefault(); if (n.trim()) onSubmit(n.trim()); }}>
+        <form className="card glass center" data-tilt="3" onSubmit={(e) => { e.preventDefault(); if (n.trim()) onSubmit(n.trim()); }}>
           <div className="big-emoji">🎭</div>
           <h2>Join room <span className="accent">{code}</span></h2>
           <input className="input" autoFocus maxLength={16} value={n} onChange={(e) => setN(e.target.value)} placeholder="Your name" />
@@ -181,7 +185,7 @@ function Lobby({ state }) {
   const [copied, setCopied] = useState(false);
   const isHost = state.hostId === state.you.id;
   const n = state.players.length;
-  const showDebug = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_DEBUG === 'true';
+  const bots = state.players.filter((p) => p.bot).length;
   const slots = Array.from({ length: 12 }, (_, i) => state.players[i] || null);
 
   async function start() {
@@ -192,7 +196,12 @@ function Lobby({ state }) {
   async function leave() {
     await emit('leave_room');
     socket.disconnect();
-    router.push('/');
+    router.push('/play');
+  }
+  async function addBots(count) {
+    play('click');
+    const res = await emit('add_bots', { count });
+    setErr(res.error || '');
   }
   async function copy() {
     play('click');
@@ -204,15 +213,16 @@ function Lobby({ state }) {
   }
 
   return (
-    <div className="card glass center">
+    <div className="card glass center" data-tilt="3">
       <p className="muted">Share this code with your friends</p>
       <div className="big-code" aria-label={`Room code ${state.code}`}>{state.code}</div>
       <button className="btn small" onClick={copy}>{copied ? '✅ Link copied!' : '🔗 Copy invite link'}</button>
 
       <div className="slots" aria-label="Players">
         {slots.map((p, i) => (
-          <div key={i} className={`slot ${p ? 'filled' : ''} ${i < 5 && !p ? 'required' : ''}`} title={p ? p.name : i < 5 ? 'Needed to start' : 'Open seat'}>
+          <div key={i} data-tilt="14" className={`slot ${p ? 'filled' : ''} ${i < 5 && !p ? 'required' : ''}`} title={p ? p.name : i < 5 ? 'Needed to start' : 'Open seat'}>
             {p ? <Avatar name={p.name} size={44} ring={p.id === state.hostId} /> : <span>{i + 1}</span>}
+            {p?.bot && <i className="slot-bot" title="Bot">🤖</i>}
             {p && <small>{p.name}{p.id === state.you.id ? ' (you)' : ''}</small>}
           </div>
         ))}
@@ -224,7 +234,12 @@ function Lobby({ state }) {
       {isHost ? (
         <>
           <button className="btn primary lg" onClick={start} disabled={n < 5}>▶ Start game</button>
-          {showDebug && <button className="btn small ghost" onClick={() => emit('add_bots', { count: Math.max(0, 5 - n) || 1 })}>🐞 Add bots (debug)</button>}
+          <div className="bot-bar">
+            {n < 5 && <button className="btn small" onClick={() => addBots(5 - n)}>🤖 Fill with bots</button>}
+            <button className="btn small" onClick={() => addBots(1)} disabled={n >= 12}>＋ Add bot</button>
+            {bots > 0 && <button className="btn small ghost" onClick={() => { play('click'); emit('remove_bots'); }}>Remove bots</button>}
+          </div>
+          <p className="muted small">Short on players? Bots take empty seats, vote, scheme and talk.</p>
         </>
       ) : (
         <p className="muted pulse">⏳ Waiting for the host to start…</p>
@@ -276,8 +291,8 @@ function Night({ state }) {
     setErr(res.error || '');
   }
 
-  if (!you.alive) return <div className="card glass center"><div className="big-emoji float">👻</div><h2>You are dead</h2><p className="muted">Watch quietly. Talk with other ghosts in the chat.</p></div>;
-  if (!acts) return <div className="card glass center"><div className="big-emoji float">🌙</div><h2>The town sleeps…</h2><p className="muted">Close your eyes. Morning will come.</p><p className="zzz">z z z</p></div>;
+  if (!you.alive) return <div className="card glass center" data-tilt="3"><div className="big-emoji float">👻</div><h2>You are dead</h2><p className="muted">Watch quietly. Talk with other ghosts in the chat.</p></div>;
+  if (!acts) return <div className="card glass center" data-tilt="3"><div className="big-emoji float">🌙</div><h2>The town sleeps…</h2><p className="muted">Close your eyes. Morning will come.</p><p className="zzz">z z z</p></div>;
 
   const exclude = you.role === 'MAFIA' ? players.filter((p) => p.role === 'MAFIA').map((p) => p.id) : you.role === 'DETECTIVE' ? [you.id] : [];
   const lastCheck = you.checks[you.checks.length - 1];
@@ -326,7 +341,7 @@ function DayResult({ state }) {
 
 function Discussion({ state }) {
   return (
-    <div className="card glass center">
+    <div className="card glass center" data-tilt="3">
       <div className="big-emoji">🗣️</div>
       <h2>Who is the Mafia?</h2>
       <p className="muted">Talk it out in the chat. Voting starts when the timer ends.</p>
@@ -354,7 +369,7 @@ function Voting({ state }) {
   const progress = (
     <p className="muted small">{state.votedIds.length}/{aliveN} votes cast</p>
   );
-  if (!you.alive) return <div className="card glass center"><div className="big-emoji float">👻</div><h2>You are dead</h2><p className="muted">The living are voting.</p>{progress}</div>;
+  if (!you.alive) return <div className="card glass center" data-tilt="3"><div className="big-emoji float">👻</div><h2>You are dead</h2><p className="muted">The living are voting.</p>{progress}</div>;
   return (
     <div className="card glass">
       <h2>🗳️ Vote someone out</h2>
@@ -370,7 +385,7 @@ function VoteResult({ state }) {
   const r = state.result;
   const name = (id) => (id === 'SKIP' ? 'Skip' : state.players.find((p) => p.id === id)?.name || '?');
   return (
-    <div className="card glass center">
+    <div className="card glass center" data-tilt="3">
       <div className="big-emoji">{r?.eliminatedName ? '⚖️' : '🤝'}</div>
       {r?.eliminatedName ? (
         <>
@@ -395,7 +410,7 @@ function GameOver({ state }) {
   const isHost = state.hostId === state.you.id;
   const won = state.winner === state.you.team;
   return (
-    <div className="card glass center">
+    <div className="card glass center" data-tilt="3">
       {won && <Confetti />}
       <div className="big-emoji">{state.winner === 'MAFIA' ? '🔪' : '🏘️'}</div>
       <h1 className={`headline ${state.winner}`}>{state.winner === 'MAFIA' ? 'The Mafia win!' : 'The Villagers win!'}</h1>

@@ -38,6 +38,7 @@ function stateFor(room, viewer) {
     day: room.day,
     hostId: room.host,
     winner: room.winner,
+    gameId: room.startedAt ? `${room.code}-${room.startedAt}` : null,
     result: room.result,
     players: room.players.map((p) => ({
       id: p.id,
