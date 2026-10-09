@@ -482,7 +482,7 @@ h1, .page-title, .headline, .cap h2, .splash-text, .join-title, .wordmark {
 .timer { text-shadow: 0 2px 0 #42080b, 0 0 14px rgba(211, 32, 42, 0.4); }
 
 /* Role card: a case-file card with thickness */
-.flip { filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.8)); }
+/* NB: no `filter` on .flip - it flattens preserve-3d and breaks the card flip. The faces carry their own shadows. */
 .flip-face { box-shadow: 0 1px 0 var(--edge-hi) inset, 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 60px rgba(211, 32, 42, 0.18); }
 .flip-face.front::before { content: 'CONFIDENTIAL'; position: absolute; top: 18px; right: 14px; transform: rotate(10deg); padding: 3px 10px; border: 2px solid rgba(211, 32, 42, 0.6); color: rgba(211, 32, 42, 0.75); font-family: var(--font-display); font-size: 0.65rem; letter-spacing: 0.25em; border-radius: 4px; }
 .role-icon { filter: drop-shadow(0 2px 0 #2a0507) drop-shadow(0 10px 18px rgba(0, 0, 0, 0.7)); }
