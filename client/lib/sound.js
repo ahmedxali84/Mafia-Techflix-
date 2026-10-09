@@ -34,6 +34,7 @@ function tone(freq, start, dur, { type = 'sine', gain = 0.08, slideTo } = {}) {
 const SOUNDS = {
   click: () => tone(660, 0, 0.07, { type: 'triangle', gain: 0.05 }),
   select: () => { tone(520, 0, 0.06, { type: 'triangle' }); tone(780, 0.05, 0.08, { type: 'triangle' }); },
+  whisper: () => { tone(420, 0, 0.25, { type: 'sine', gain: 0.035, slideTo: 300 }); tone(560, 0.08, 0.3, { type: 'sine', gain: 0.025, slideTo: 380 }); },
   message: () => tone(900, 0, 0.06, { gain: 0.03 }),
   tick: () => tone(1000, 0, 0.05, { type: 'square', gain: 0.025 }),
   reveal: () => { tone(220, 0, 0.5, { type: 'sawtooth', gain: 0.04, slideTo: 440 }); tone(660, 0.35, 0.5, { gain: 0.06 }); },

@@ -8,6 +8,7 @@ const rm = require('./rooms');
 const phases = require('./game/phases');
 const actions = require('./game/actions');
 const { teamOf } = require('./game/roles');
+const whispers = require('./game/whispers');
 const { stateFor, chatChannel, canSeeMessage } = require('./view');
 
 const PORT = process.env.PORT || 4000;
@@ -35,8 +36,7 @@ function broadcast(room) {
 }
 
 // Stores a chat message and sends it to everyone allowed to see it.
-function postChat(room, player, text, channel) {
-  const msg = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, channel, from: player.id, name: player.name, text, ts: Date.now() };
+function deliver(room, msg) {
   room.chat.push(msg);
   if (room.chat.length > 200) room.chat.shift();
   for (const p of room.players) {
@@ -45,6 +45,11 @@ function postChat(room, player, text, channel) {
       if (s) s.emit('chat_message', msg);
     }
   }
+}
+
+// Convenience wrapper used by chat and by the bots.
+function postChat(room, player, text, channel) {
+  deliver(room, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, channel, from: player.id, name: player.name, text, ts: Date.now() });
 }
 
 const ctx = {
@@ -160,6 +165,18 @@ io.on('connection', (socket) => {
     if (!channel) return cb({ error: 'You cannot chat right now' });
     postChat(room, player, clean, channel);
     cb({ ok: true });
+  });
+
+  // Secret message to one living player (limited per game). Everyone sees only a notice.
+  socket.on('whisper', ({ targetId, text } = {}, cb = () => {}) => {
+    const { room, player } = me();
+    if (!room) return cb({ error: 'Not in a room' });
+    const res = whispers.sendWhisper(room, player.id, targetId, text);
+    if (res.error) return cb(res);
+    deliver(room, res.notice);
+    deliver(room, res.whisper);
+    broadcast(room); // refreshes the sender's whispers-left counter
+    cb({ ok: true, whispersLeft: player.whispersLeft });
   });
 
   // The host can fill empty seats with bots so the game always has a table.

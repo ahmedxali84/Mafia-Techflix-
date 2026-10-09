@@ -2,6 +2,7 @@ const { assignRoles, MIN_PLAYERS } = require('./roles');
 const { winCheck } = require('./winCheck');
 const actions = require('./actions');
 const bots = require('./bots');
+const { resetWhispers } = require('./whispers');
 
 const scale = Number(process.env.TIMER_SCALE) || 1; // set small in tests
 
@@ -47,6 +48,7 @@ function startGame(room, ctx) {
     p.alive = true;
     p.checks = [];
   });
+  resetWhispers(room);
   room.day = 0;
   room.startedAt = Date.now();
   room.claims = [];

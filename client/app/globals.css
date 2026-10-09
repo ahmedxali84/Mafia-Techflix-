@@ -515,3 +515,44 @@ h1, .page-title, .headline, .cap h2, .splash-text, .join-title, .wordmark {
 @keyframes veilOut { 0%, 55% { opacity: 0; } 100% { opacity: 1; } }
 .veil-in { position: fixed !important; inset: 0; z-index: 50 !important; pointer-events: none; background: radial-gradient(circle at center, rgba(211, 32, 42, 0.3), #070405 70%); animation: veilIn 0.8s ease-out forwards; }
 @keyframes veilIn { to { opacity: 0; visibility: hidden; } }
+
+/* ───────── Whispers ───────── */
+:root { --violet: #a78bfa; --violet2: #7c5cff; }
+.chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--border); gap: 2px; }
+.seg button { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: 34px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: background 0.2s, color 0.2s; }
+.seg button.on { background: var(--accent); color: #fff; }
+.seg button.w.on { background: linear-gradient(135deg, var(--violet2), var(--violet)); }
+.pips { display: inline-flex; gap: 3px; }
+.pips i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; opacity: 0.55; }
+.pips i.full { background: currentColor; opacity: 1; box-shadow: 0 0 6px currentColor; }
+.ping { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px; display: grid; place-items: center; background: var(--violet); color: #1a1230; font-size: 0.7rem; animation: ping 1.2s infinite; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.7); } 100% { box-shadow: 0 0 0 10px rgba(167, 139, 250, 0); } }
+
+.chat.whisper-mode { border-color: rgba(167, 139, 250, 0.7); box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.25), 0 10px 40px rgba(124, 92, 255, 0.25); background-image: radial-gradient(ellipse at top, rgba(124, 92, 255, 0.16), transparent 70%); }
+.whisper-box { display: grid; gap: 8px; animation: rise 0.3s both; }
+.whisper-hint { margin: 0; font-size: 0.78rem; color: var(--violet); }
+.whisper-hint b { color: inherit; text-decoration: underline dotted; }
+.whisper-empty { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--panel2); color: var(--muted); font-size: 0.85rem; text-align: center; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.chip { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 5px; min-height: 38px; border-radius: 99px; border: 1.5px solid var(--border); background: var(--panel2); color: var(--text); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: transform 0.15s, border-color 0.15s; }
+.chip:hover { transform: translateY(-2px); }
+.chip.on { border-color: var(--violet); background: rgba(167, 139, 250, 0.2); box-shadow: 0 0 14px rgba(167, 139, 250, 0.35); }
+.field { position: relative; flex: 1; min-width: 0; }
+.field .input { padding-right: 38px; }
+.count { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.7rem; color: var(--muted); }
+.btn.violet { background: linear-gradient(135deg, var(--violet2), var(--violet)); border-color: transparent; color: #fff; box-shadow: 0 8px 24px rgba(124, 92, 255, 0.35); }
+.btn.sent { animation: pop 0.3s; filter: saturate(1.4); }
+
+.bubble.whisper { align-self: stretch; max-width: 100%; border-radius: 14px; border: 1.5px dashed var(--violet); background: linear-gradient(135deg, rgba(124, 92, 255, 0.22), rgba(167, 139, 250, 0.12)); color: var(--text); animation: whisperIn 0.5s ease both; }
+.bubble.whisper b { color: var(--violet); font-size: 0.74rem; }
+.bubble.whisper.mine { align-self: stretch; background: linear-gradient(135deg, rgba(167, 139, 250, 0.12), rgba(124, 92, 255, 0.22)); color: var(--text); }
+@keyframes whisperIn { from { opacity: 0; transform: translateY(8px) scale(0.96); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.notice { align-self: center; margin: 2px 0; padding: 3px 12px; border-radius: 99px; background: rgba(167, 139, 250, 0.14); color: var(--violet); font-size: 0.74rem; font-style: italic; animation: pop 0.3s; }
+.day .notice, .day .whisper-hint, .day .bubble.whisper b { color: #5b3fd1; }
+.day .chip.on { border-color: #7c5cff; }
+
+@media (max-width: 800px) {
+  .chat.whisper-mode .messages { height: 26dvh !important; }
+}
+.chat.whisper-mode .messages { height: 180px; }

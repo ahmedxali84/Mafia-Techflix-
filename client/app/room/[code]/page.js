@@ -59,7 +59,7 @@ export default function RoomPage() {
     if (chat.length > seen.current) {
       const last = chat[chat.length - 1];
       if (state && last.from !== state.you.id) {
-        play('message');
+        play(last.channel === 'whisper' ? 'whisper' : last.channel === 'notice' ? 'click' : 'message');
         if (tab !== 'chat') setUnread((u) => u + (chat.length - seen.current));
       }
     }
@@ -139,7 +139,7 @@ export default function RoomPage() {
             </div>
           </div>
           <div className={tab !== 'chat' ? 'hide-m' : ''}>
-            <Chat messages={chat} channel={state.you.chatChannel} myId={state.you.id} />
+            <Chat messages={chat} channel={state.you.chatChannel} myId={state.you.id} players={state.players} whispersLeft={state.you.whispersLeft} canWhisper={state.you.alive && ['DISCUSSION', 'VOTING'].includes(state.phase)} />
           </div>
         </aside>
       </div>
