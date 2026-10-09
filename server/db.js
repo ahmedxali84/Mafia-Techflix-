@@ -25,9 +25,14 @@ const userSchema = new mongoose.Schema(
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 async function connectDb() {
+  // Stats are opt-in (planned for mid/late development): nothing connects unless ENABLE_DB=true.
+  if (process.env.ENABLE_DB !== 'true') {
+    console.log('MongoDB is off (set ENABLE_DB=true and MONGODB_URI to enable stats)');
+    return false;
+  }
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.log('MONGODB_URI not set â€” stats are disabled');
+    console.log('MONGODB_URI not set - stats are disabled');
     return false;
   }
   const connect = () => mongoose.connect(uri, { serverSelectionTimeoutMS: 8000 });
@@ -37,7 +42,7 @@ async function connectDb() {
     } catch (err) {
       // Some routers/ISPs refuse SRV lookups from Node's resolver; retry via public DNS.
       if (!/querySrv|ENOTFOUND|ECONNREFUSED/.test(err.message)) throw err;
-      console.log('SRV lookup failed, retrying with public DNS…');
+      console.log('SRV lookup failed, retrying with public DNS-');
       dns.setServers(['8.8.8.8', '1.1.1.1']);
       await mongoose.disconnect().catch(() => {});
       await connect();
@@ -45,7 +50,7 @@ async function connectDb() {
     ready = true;
     console.log('MongoDB connected');
   } catch (err) {
-    console.error('MongoDB connection failed — stats are disabled:', err.message);
+    console.error('MongoDB connection failed - stats are disabled:', err.message);
   }
   return ready;
 }
