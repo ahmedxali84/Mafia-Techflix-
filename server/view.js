@@ -20,7 +20,8 @@ function chatChannel(room, p) {
 }
 
 function canSeeMessage(room, viewer, msg) {
-  if (msg.channel === 'public') return true;
+  if (msg.channel === 'public' || msg.channel === 'notice') return true;
+  if (msg.channel === 'whisper') return viewer.id === msg.from || viewer.id === msg.to;
   if (msg.channel === 'mafia') return viewer.role === 'MAFIA';
   if (msg.channel === 'dead') return !viewer.alive || room.phase === 'GAME_OVER';
   return false;
@@ -56,6 +57,7 @@ function stateFor(room, viewer) {
       vote: room.votes[viewer.id] || null,
       checks: viewer.checks || [],
       chatChannel: chatChannel(room, viewer),
+      whispersLeft: viewer.whispersLeft || 0,
     },
     chat: room.chat.filter((m) => canSeeMessage(room, viewer, m)),
   };

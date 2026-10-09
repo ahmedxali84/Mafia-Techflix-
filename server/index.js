@@ -9,6 +9,7 @@ const phases = require('./game/phases');
 const actions = require('./game/actions');
 const { teamOf } = require('./game/roles');
 const db = require('./db');
+const whispers = require('./game/whispers');
 const { stateFor, chatChannel, canSeeMessage } = require('./view');
 
 const PORT = process.env.PORT || 4000;
@@ -46,6 +47,18 @@ function broadcast(room) {
   for (const p of room.players) {
     const s = socketOf(p);
     if (s) s.emit('state', stateFor(room, p));
+  }
+}
+
+// Stores a chat message and sends it to everyone allowed to see it.
+function deliver(room, msg) {
+  room.chat.push(msg);
+  if (room.chat.length > 200) room.chat.shift();
+  for (const p of room.players) {
+    if (canSeeMessage(room, p, msg)) {
+      const s = socketOf(p);
+      if (s) s.emit('chat_message', msg);
+    }
   }
 }
 
@@ -159,16 +172,20 @@ io.on('connection', (socket) => {
     if (!clean) return cb({ error: 'Empty message' });
     const channel = chatChannel(room, player);
     if (!channel) return cb({ error: 'You cannot chat right now' });
-    const msg = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, channel, from: player.id, name: player.name, text: clean, ts: Date.now() };
-    room.chat.push(msg);
-    if (room.chat.length > 200) room.chat.shift();
-    for (const p of room.players) {
-      if (canSeeMessage(room, p, msg)) {
-        const s = socketOf(p);
-        if (s) s.emit('chat_message', msg);
-      }
-    }
+    deliver(room, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, channel, from: player.id, name: player.name, text: clean, ts: Date.now() });
     cb({ ok: true });
+  });
+
+  // Secret message to one living player (limited per game). Everyone sees only a notice.
+  socket.on('whisper', ({ targetId, text } = {}, cb = () => {}) => {
+    const { room, player } = me();
+    if (!room) return cb({ error: 'Not in a room' });
+    const res = whispers.sendWhisper(room, player.id, targetId, text);
+    if (res.error) return cb(res);
+    deliver(room, res.notice);
+    deliver(room, res.whisper);
+    broadcast(room); // refreshes the sender's whispers-left counter
+    cb({ ok: true, whispersLeft: player.whispersLeft });
   });
 
   // Debug mode: one person can fill a room with bots to test alone.
