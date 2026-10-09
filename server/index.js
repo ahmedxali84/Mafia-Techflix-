@@ -8,7 +8,7 @@ const rm = require('./rooms');
 const phases = require('./game/phases');
 const actions = require('./game/actions');
 const { teamOf } = require('./game/roles');
-const db = require('./db');
+const whispers = require('./game/whispers');
 const { stateFor, chatChannel, canSeeMessage } = require('./view');
 
 const PORT = process.env.PORT || 4000;
@@ -19,20 +19,6 @@ const DEBUG = process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEBUG 
 const app = express();
 app.use(cors({ origin: ORIGIN }));
 app.get('/', (_req, res) => res.send('Mafia server running'));
-app.get('/leaderboard', async (_req, res) => {
-  try {
-    res.json({ enabled: db.isReady(), players: await db.leaderboard(20) });
-  } catch {
-    res.status(500).json({ error: 'Leaderboard unavailable' });
-  }
-});
-app.get('/stats/:playerId', async (req, res) => {
-  try {
-    res.json({ enabled: db.isReady(), stats: await db.getStats(req.params.playerId) });
-  } catch {
-    res.status(500).json({ error: 'Stats unavailable' });
-  }
-});
 app.get('/health', (_req, res) => res.json({ ok: true, rooms: Object.keys(rm.rooms).length }));
 
 const server = http.createServer(app);
@@ -49,7 +35,25 @@ function broadcast(room) {
   }
 }
 
+// Stores a chat message and sends it to everyone allowed to see it.
+function deliver(room, msg) {
+  room.chat.push(msg);
+  if (room.chat.length > 200) room.chat.shift();
+  for (const p of room.players) {
+    if (canSeeMessage(room, p, msg)) {
+      const s = socketOf(p);
+      if (s) s.emit('chat_message', msg);
+    }
+  }
+}
+
+// Convenience wrapper used by chat and by the bots.
+function postChat(room, player, text, channel) {
+  deliver(room, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, channel, from: player.id, name: player.name, text, ts: Date.now() });
+}
+
 const ctx = {
+  onBotChat: postChat,
   onChange: broadcast,
   onPhase: (room) => io.to(room.code).emit('phase_change', { phase: room.phase, endsAt: room.endsAt }),
   onRole: (_room, p) => {
@@ -61,7 +65,6 @@ const ctx = {
     if (s) s.emit('investigation_result', { targetId: c.targetId, isMafia: c.isMafia });
   },
   onGameOver: (room) => {
-    db.recordGame(room);
     io.to(room.code).emit('game_over', {
       winner: room.winner,
       roles: Object.fromEntries(room.players.map((p) => [p.id, p.role])),
@@ -86,9 +89,10 @@ io.on('connection', (socket) => {
     broadcast(room);
   }
 
-  socket.on('create_room', ({ playerId, name } = {}, cb = () => {}) => {
+  socket.on('create_room', ({ playerId, name, bots = 0 } = {}, cb = () => {}) => {
     if (!playerId || !rm.cleanName(name)) return cb({ error: 'Name is required' });
     const room = rm.createRoom(playerId, name);
+    if (bots > 0) rm.addBots(room, Math.min(Number(bots) || 0, 11));
     enter(room, room.players[0]);
     cb({ ok: true, code: room.code });
   });
@@ -159,24 +163,35 @@ io.on('connection', (socket) => {
     if (!clean) return cb({ error: 'Empty message' });
     const channel = chatChannel(room, player);
     if (!channel) return cb({ error: 'You cannot chat right now' });
-    const msg = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, channel, from: player.id, name: player.name, text: clean, ts: Date.now() };
-    room.chat.push(msg);
-    if (room.chat.length > 200) room.chat.shift();
-    for (const p of room.players) {
-      if (canSeeMessage(room, p, msg)) {
-        const s = socketOf(p);
-        if (s) s.emit('chat_message', msg);
-      }
-    }
+    postChat(room, player, clean, channel);
     cb({ ok: true });
   });
 
-  // Debug mode: one person can fill a room with bots to test alone.
+  // Secret message to one living player (limited per game). Everyone sees only a notice.
+  socket.on('whisper', ({ targetId, text } = {}, cb = () => {}) => {
+    const { room, player } = me();
+    if (!room) return cb({ error: 'Not in a room' });
+    const res = whispers.sendWhisper(room, player.id, targetId, text);
+    if (res.error) return cb(res);
+    deliver(room, res.notice);
+    deliver(room, res.whisper);
+    broadcast(room); // refreshes the sender's whispers-left counter
+    cb({ ok: true, whispersLeft: player.whispersLeft });
+  });
+
+  // The host can fill empty seats with bots so the game always has a table.
   socket.on('add_bots', ({ count = 4 } = {}, cb = () => {}) => {
-    if (!DEBUG) return cb({ error: 'Debug mode is off' });
     const { room, player } = me();
     if (!room || room.host !== player.id || room.phase !== 'LOBBY') return cb({ error: 'Host only, in lobby' });
     rm.addBots(room, Math.min(Number(count) || 0, 11));
+    broadcast(room);
+    cb({ ok: true });
+  });
+
+  socket.on('remove_bots', (_p, cb = () => {}) => {
+    const { room, player } = me();
+    if (!room || room.host !== player.id || room.phase !== 'LOBBY') return cb({ error: 'Host only, in lobby' });
+    rm.removeBots(room);
     broadcast(room);
     cb({ ok: true });
   });
@@ -190,7 +205,6 @@ io.on('connection', (socket) => {
 });
 
 if (require.main === module) {
-  db.connectDb();
   server.listen(PORT, () => console.log(`Server running on port ${PORT}${DEBUG ? ' (debug on)' : ''}`));
 }
 

@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 
 const SPLASH = {
-  NIGHT: { icon: '🌙', text: 'Night falls', sub: 'The town goes to sleep…' },
-  DISCUSSION: { icon: '☀️', text: 'Dawn breaks', sub: 'Time to find the Mafia' },
-  VOTING: { icon: '🗳️', text: 'Time to vote', sub: 'Choose wisely' },
+  NIGHT: { text: 'Night falls', sub: 'The town goes to sleep…' },
+  DISCUSSION: { text: 'Dawn breaks', sub: 'Time to find the Mafia' },
+  VOTING: { text: 'Time to vote', sub: 'Someone has to pay.' },
 };
 
 // Brief full-screen title card when a major phase starts.
@@ -22,7 +22,7 @@ export default function PhaseSplash({ phase, day }) {
   if (!show) return null;
   return (
     <div className="splash" key={show.key} role="status">
-      <div className="splash-icon">{show.icon}</div>
+      <div className="splash-kicker">{day > 0 ? `Day ${day}` : 'Mafia'}</div>
       <div className="splash-text">{show.text}</div>
       <div className="splash-sub">{show.sub}</div>
     </div>

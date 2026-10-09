@@ -13,9 +13,28 @@ cd client && npm install && npm run dev      # http://localhost:3000
 
 Test alone: create a room and press **Add bots (debug)** in the lobby, then Start.
 
-## Stats (optional, MongoDB)
+## Stats (optional, MongoDB - off by default)
 
-Copy `server/.env.example` to `server/.env` and set `MONGODB_URI` (Atlas). Without it the game works, just without stats. Stats are tied to the browser's saved player id (no login). Endpoints: `GET /leaderboard`, `GET /stats/:playerId`; client page `/leaderboard`.
+No database: each player's stats (games, wins, per-role record) are saved in their own browser's localStorage when a game ends. Client page `/stats`.
+
+## Team workflow (read before your first commit)
+
+1. **Never push to `main`.** Every task gets its own branch: `git checkout -b feature/<task>` (e.g. `feature/lobby-ui`).
+2. Small commits with clear messages: `git commit -m "add join room"`.
+3. Open a **Pull Request** when done. The Team Lead reviews and merges.
+4. Start each day with `git pull origin main`, and merge it into your branch before opening a PR.
+5. **Stay in your folder** to avoid conflicts (see table). Need a change elsewhere? Ask the owner or mention it in your PR.
+6. Never commit secrets. `.env` is git-ignored; share values privately and keep `.env.example` up to date.
+7. Run `cd server && npm test` before opening a PR. All tests must pass.
+8. 10-minute daily check-in (yesterday / today / blockers) and a demo at the end of every week.
+
+| Owner | Area | Folders |
+|---|---|---|
+| Mubashir (Team Lead) | Game logic | `server/game/` |
+| Hiban | Rooms, sockets, database | `server/index.js`, `server/rooms.js`, `server/db.js` |
+| Usman | QA, deploy, chat/voice | `server/test/`, deploy config |
+| Eshaal | Frontend | `client/app`, `client/components`, `client/lib/socket.js` |
+| Tazmeen | UI / styling | `client/app/globals.css`, `client/public`, Figma |
 
 ## Tests
 

@@ -1,5 +1,6 @@
 const { MAX_PLAYERS } = require('./game/roles');
 const { clearTimers } = require('./game/phases');
+const { botName } = require('./game/bots');
 
 const rooms = {}; // { CODE: room }
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no look-alike chars
@@ -64,11 +65,17 @@ function joinRoom(code, playerId, name) {
 function addBots(room, count) {
   let added = 0;
   while (added < count && room.players.length < MAX_PLAYERS) {
-    const n = room.players.filter((p) => p.bot).length + 1;
-    room.players.push(newPlayer(`bot-${room.code}-${Date.now()}-${n}`, `Bot ${n}`, { bot: true }));
+    const id = `bot-${room.code}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    room.players.push(newPlayer(id, botName(room), { bot: true }));
     added++;
   }
   return added;
+}
+
+function removeBots(room) {
+  const before = room.players.length;
+  room.players = room.players.filter((p) => !p.bot);
+  return before - room.players.length;
 }
 
 function pickNewHost(room) {
@@ -124,4 +131,4 @@ function leaveRoom(room, playerId, onChange) {
   onChange(room);
 }
 
-module.exports = { rooms, createRoom, joinRoom, addBots, disconnect, leaveRoom, cleanName };
+module.exports = { rooms, createRoom, joinRoom, addBots, removeBots, disconnect, leaveRoom, cleanName };

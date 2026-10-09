@@ -1,10 +1,11 @@
 import Avatar from './Avatar';
+import RoleIcon from './RoleIcon';
 
 export const ROLE_INFO = {
-  MAFIA: { icon: '🔪', label: 'Mafia', blurb: 'Each night, choose a player to eliminate with your team. Stay hidden by day.' },
-  VILLAGER: { icon: '🧑‍🌾', label: 'Villager', blurb: 'You have no night power. Find the Mafia by talking and voting.' },
-  DOCTOR: { icon: '🩺', label: 'Doctor', blurb: 'Each night, protect one player from being killed. You may protect yourself.' },
-  DETECTIVE: { icon: '🕵️', label: 'Detective', blurb: 'Each night, investigate one player to learn whether they are Mafia.' },
+  MAFIA: { icon: <span className="role-ico"><RoleIcon role="MAFIA" /></span>, label: 'Mafia', blurb: 'Each night, choose a player to eliminate with your team. Stay hidden by day.' },
+  VILLAGER: { icon: <span className="role-ico"><RoleIcon role="VILLAGER" /></span>, label: 'Villager', blurb: 'You have no night power. Find the Mafia by talking and voting.' },
+  DOCTOR: { icon: <span className="role-ico"><RoleIcon role="DOCTOR" /></span>, label: 'Doctor', blurb: 'Each night, protect one player from being killed. You may protect yourself.' },
+  DETECTIVE: { icon: <span className="role-ico"><RoleIcon role="DETECTIVE" /></span>, label: 'Detective', blurb: 'Each night, investigate one player to learn whether they are Mafia.' },
 };
 
 export default function PlayerCard({ player, isYou, isHost, selected, onClick, disabled, badge, compact }) {
@@ -14,6 +15,7 @@ export default function PlayerCard({ player, isYou, isHost, selected, onClick, d
   return (
     <button
       type="button"
+      data-tilt={interactive ? 8 : undefined}
       className={`player ${compact ? 'compact' : ''} ${dead ? 'dead' : ''} ${selected ? 'selected' : ''} ${interactive ? 'pickable' : ''}`}
       onClick={onClick}
       disabled={!interactive}
