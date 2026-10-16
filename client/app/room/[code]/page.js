@@ -16,6 +16,8 @@ import HowToPlay from '@/components/HowToPlay';
 import SoundToggle from '@/components/SoundToggle';
 import Avatar from '@/components/Avatar';
 import PlayerCard, { ROLE_INFO } from '@/components/PlayerCard';
+import VoicePanel, { PushToTalkFab } from '@/components/VoicePanel';
+import { useVoice } from '@/lib/useVoice';
 
 const PHASE_TITLE = {
   LOBBY: 'Lobby',
@@ -33,6 +35,7 @@ export default function RoomPage() {
   const { code: raw } = useParams();
   const code = String(raw).toUpperCase();
   const { status, error, state, chat, online, join } = useRoom(code);
+  const voice = useVoice(state);
   const [tab, setTab] = useState('game'); // mobile tabs
   const [help, setHelp] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -119,7 +122,7 @@ export default function RoomPage() {
 
       <nav className="tabs" aria-label="Sections">
         <button className={tab === 'game' ? 'on' : ''} onClick={() => setTab('game')}>🎮 Game</button>
-        <button className={tab === 'players' ? 'on' : ''} onClick={() => setTab('players')}>👥 Players ({aliveCount})</button>
+        <button className={tab === 'players' ? 'on' : ''} onClick={() => setTab('players')}>👥 Players ({aliveCount}){voice.active && ' 🎙️'}</button>
         <button className={tab === 'chat' ? 'on' : ''} onClick={() => setTab('chat')}>💬 Chat{unread > 0 && <i className="dot">{unread}</i>}</button>
       </nav>
 
@@ -131,10 +134,13 @@ export default function RoomPage() {
         </div>
         <aside className="side">
           <div className={tab !== 'players' ? 'hide-m' : ''}>
+            <VoicePanel voice={voice} state={state} />
+          </div>
+          <div className={tab !== 'players' ? 'hide-m' : ''}>
             <h3 className="side-title">Players <span>{aliveCount}/{state.players.length} alive</span></h3>
             <div className="list compact">
               {state.players.map((p) => (
-                <PlayerCard key={p.id} compact player={p} isYou={p.id === state.you.id} isHost={p.id === state.hostId} />
+                <PlayerCard key={p.id} compact player={p} isYou={p.id === state.you.id} isHost={p.id === state.hostId} speaking={voice.speaking.has(p.id)} />
               ))}
             </div>
           </div>
@@ -143,6 +149,7 @@ export default function RoomPage() {
           </div>
         </aside>
       </div>
+      <PushToTalkFab voice={voice} state={state} />
       {help && <HowToPlay onClose={() => setHelp(false)} />}
     </main>
   );

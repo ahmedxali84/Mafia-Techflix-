@@ -27,6 +27,23 @@ function canSeeMessage(room, viewer, msg) {
   return false;
 }
 
+// Voice uses the chat rules: you hear a speaker iff you could read what they write right now.
+function hears(room, listener, speaker) {
+  if (listener.id === speaker.id || listener.bot || speaker.bot) return false;
+  const channel = chatChannel(room, speaker);
+  return !!channel && canSeeMessage(room, listener, { channel });
+}
+
+// Who the player sends their mic to / hears, among players currently in voice.
+function voiceFor(room, p) {
+  const inVoice = room.players.filter((x) => x.voice && x.connected && x.id !== p.id);
+  return {
+    channel: chatChannel(room, p),
+    sendTo: inVoice.filter((x) => hears(room, x, p)).map((x) => x.id),
+    hearFrom: inVoice.filter((x) => hears(room, p, x)).map((x) => x.id),
+  };
+}
+
 function stateFor(room, viewer) {
   const started = room.phase !== 'LOBBY';
   return {
@@ -48,6 +65,7 @@ function stateFor(room, viewer) {
       connected: p.connected || !!p.bot,
       bot: !!p.bot,
       role: started && canSeeRole(room, viewer, p) ? p.role : undefined,
+      voice: p.voice && p.connected ? { session: p.voice.session, muted: p.voice.muted } : null,
     })),
     you: {
       id: viewer.id,
@@ -59,9 +77,10 @@ function stateFor(room, viewer) {
       checks: viewer.checks || [],
       chatChannel: chatChannel(room, viewer),
       whispersLeft: viewer.whispersLeft || 0,
+      voice: voiceFor(room, viewer),
     },
     chat: room.chat.filter((m) => canSeeMessage(room, viewer, m)),
   };
 }
 
-module.exports = { stateFor, chatChannel, canSeeMessage };
+module.exports = { stateFor, chatChannel, canSeeMessage, voiceFor };

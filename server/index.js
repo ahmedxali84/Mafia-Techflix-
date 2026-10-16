@@ -16,6 +16,15 @@ const PORT = process.env.PORT || 4000;
 const ORIGIN = process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(',') : '*';
 const DEBUG = process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEBUG === 'true';
 
+// WebRTC servers for voice chat. STUN finds a direct path; TURN relays audio when that fails.
+const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+if (process.env.TURN_URL) {
+  ICE_SERVERS.push({ urls: process.env.TURN_URL.split(','), username: process.env.TURN_USERNAME, credential: process.env.TURN_CREDENTIAL });
+}
+const SIGNAL_MAX = 16000; // bytes per signaling message (SDP is ~3-6 KB)
+const ack = (cb) => (typeof cb === 'function' ? cb : () => {});
+const SIGNAL_RATE = 300; // messages per second per socket (joining a full table sends ~11 offers + their ICE candidates)
+
 const app = express();
 app.use(cors({ origin: ORIGIN }));
 app.get('/', (_req, res) => res.send('Mafia server running'));
@@ -82,7 +91,14 @@ io.on('connection', (socket) => {
     return { room, player };
   };
 
+  // The player, but only if this socket is their current connection (an old tab can't touch voice).
+  const meLive = () => {
+    const { room, player } = me();
+    return room && player && player.socketId === socket.id ? { room, player } : {};
+  };
+
   function enter(room, player) {
+    if (player.socketId !== socket.id) player.voice = null; // a new tab/refresh must rejoin voice
     player.socketId = socket.id;
     current = { code: room.code, playerId: player.id };
     socket.join(room.code);
@@ -110,7 +126,8 @@ io.on('connection', (socket) => {
 
   socket.on('leave_room', (_p, cb = () => {}) => {
     const { room, player } = me();
-    if (!room) return cb({ ok: true });
+    if (!room || !player) return cb({ ok: true });
+    player.voice = null;
     socket.leave(room.code);
     if (room.phase === 'LOBBY' || room.phase === 'GAME_OVER') rm.leaveRoom(room, player.id, broadcast);
     else rm.disconnect(room, player.id, broadcast), broadcast(room);
@@ -196,9 +213,57 @@ io.on('connection', (socket) => {
     cb({ ok: true });
   });
 
+  // ── Voice chat (WebRTC). The server only relays signaling; see docs/VOICE.md. ──
+  socket.on('voice_join', (_p, done) => {
+    const cb = ack(done);
+    const { room, player } = meLive();
+    if (!room) return cb({ error: 'Not in a room' });
+    player.voice = { session: Math.random().toString(36).slice(2, 10), muted: false };
+    broadcast(room);
+    cb({ ok: true, session: player.voice.session, iceServers: ICE_SERVERS, at: Date.now() });
+  });
+
+  socket.on('voice_leave', (_p, done) => {
+    const cb = ack(done);
+    const { room, player } = meLive();
+    if (room && player?.voice) {
+      player.voice = null;
+      broadcast(room);
+    }
+    cb({ ok: true });
+  });
+
+  socket.on('voice_mute', (p, done) => {
+    const cb = ack(done);
+    const muted = !!(p && p.muted);
+    const { room, player } = meLive();
+    if (!room || !player.voice) return cb({ error: 'Not in voice' });
+    player.voice.muted = muted;
+    broadcast(room);
+    cb({ ok: true });
+  });
+
+  // Relays an SDP offer/answer or ICE candidate to one other player in voice in the same room.
+  let signals = { at: 0, n: 0 };
+  socket.on('voice_signal', (p) => {
+    const { to, toSession, data } = p && typeof p === 'object' ? p : {};
+    const { room, player } = meLive();
+    if (!room || !player.voice) return;
+    const now = Date.now();
+    if (now - signals.at > 1000) signals = { at: now, n: 0 };
+    if (++signals.n > SIGNAL_RATE) return;
+    if (!data || typeof data !== 'object' || JSON.stringify(data).length > SIGNAL_MAX) return;
+    const target = room.players.find((p) => p.id === to);
+    if (!target || target.bot || !target.voice || target.voice.session !== toSession) return;
+    const s = socketOf(target);
+    // `at` lets the receiver tell whether a later room state already knew about this sender.
+    if (s) s.emit('voice_signal', { from: player.id, fromSession: player.voice.session, data, at: now });
+  });
+
   socket.on('disconnect', () => {
     const { room, player } = me();
     if (!room || !player || player.socketId !== socket.id) return; // replaced by a newer connection
+    player.voice = null;
     rm.disconnect(room, player.id, broadcast);
     broadcast(room);
   });
