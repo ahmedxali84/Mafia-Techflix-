@@ -55,6 +55,10 @@ Unit tests for roles, win check, night actions and voting, plus an end-to-end ga
 - Chat: public (day/lobby), Mafia-only (night), ghost chat (dead).
 - Refreshing reconnects you to your seat (stable `playerId` in localStorage). Host passes to the next connected player.
 
+## Voice chat
+
+Real-time voice (WebRTC, peer-to-peer). Open **Players → Join voice**. Push-to-talk (hold `T` or the 🎙️ button) or open mic, mute, deafen, per-player volume. Voice follows the chat rules: at night only the Mafia hear each other and ghosts only talk to ghosts. Needs `https` or `localhost` for the mic. Design + protocol: [docs/VOICE.md](docs/VOICE.md). For players behind strict NATs set `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL` on the server.
+
 ## Layout
 
 ```
@@ -69,4 +73,4 @@ client/  app/ (home, room/[code]) · components/ · lib/{socket,useRoom}.js
 
 ## Not built yet (guide weeks 6–8)
 
-Sounds/animations/avatars polish, Google login (stats currently use a per-browser id), voice chat, Figma designs.
+Sounds/animations/avatars polish, Google login (stats currently use a per-browser id), Figma designs.
