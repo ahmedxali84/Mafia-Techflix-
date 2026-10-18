@@ -97,7 +97,22 @@ io.on('connection', (socket) => {
     return room && player && player.socketId === socket.id ? { room, player } : {};
   };
 
+  // Takes this socket out of its current room (as if the player pressed "Leave").
+  function leave() {
+    const { room, player } = me();
+    current = null;
+    if (!room || !player) return;
+    socket.leave(room.code);
+    if (player.socketId !== socket.id) return; // seat already taken over by a newer tab
+    player.voice = null;
+    if (room.phase === 'LOBBY' || room.phase === 'GAME_OVER') rm.leaveRoom(room, player.id, broadcast);
+    else rm.disconnect(room, player.id, broadcast), broadcast(room);
+  }
+
   function enter(room, player) {
+    // Same socket going to another room (e.g. browser Back, then create/join): leave the old one
+    // first, otherwise it stays there as a "connected" ghost and keeps getting that room's events.
+    if (current && current.code !== room.code) leave();
     if (player.socketId !== socket.id) player.voice = null; // a new tab/refresh must rejoin voice
     player.socketId = socket.id;
     current = { code: room.code, playerId: player.id };
@@ -125,13 +140,7 @@ io.on('connection', (socket) => {
   socket.on('rejoin_room', join);
 
   socket.on('leave_room', (_p, cb = () => {}) => {
-    const { room, player } = me();
-    if (!room || !player) return cb({ ok: true });
-    player.voice = null;
-    socket.leave(room.code);
-    if (room.phase === 'LOBBY' || room.phase === 'GAME_OVER') rm.leaveRoom(room, player.id, broadcast);
-    else rm.disconnect(room, player.id, broadcast), broadcast(room);
-    current = null;
+    leave();
     cb({ ok: true });
   });
 

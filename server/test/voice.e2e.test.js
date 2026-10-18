@@ -151,7 +151,9 @@ test('routes follow the game: Mafia-only at night, everyone by day', async () =>
   await until(() => cs.every((c) => c.state?.phase === 'NIGHT'));
   for (const c of cs) {
     const v = c.state.you.voice;
-    if (c.state.you.role === 'MAFIA') assert.equal(v.channel, 'mafia');
+    // Night 1 can end before every client saw it; on a later night some players are already dead.
+    if (!c.state.you.alive) assert.equal(v.channel, 'dead');
+    else if (c.state.you.role === 'MAFIA') assert.equal(v.channel, 'mafia');
     else assert.deepEqual([v.channel, v.sendTo, v.hearFrom], [null, [], []], `${c.id} (${c.state.you.role}) is silent at night`);
   }
   await until(() => cs.every((c) => c.state?.phase === 'DISCUSSION'));

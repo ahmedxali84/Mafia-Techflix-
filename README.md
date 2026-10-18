@@ -11,7 +11,7 @@ cd client && npm install && npm run dev      # http://localhost:3000
 
 `client/.env.local` → `NEXT_PUBLIC_SERVER_URL=http://localhost:4000`
 
-Test alone: create a room and press **Add bots (debug)** in the lobby, then Start.
+Test alone: create a room and press **Fill with bots** in the lobby, then Start. Or connect 5 fake players over the network (they join like real tabs and play): `node tests/addBots.js <CODE> [count] [server-url]`.
 
 ## Stats (optional, MongoDB - off by default)
 
@@ -42,7 +42,7 @@ No database: each player's stats (games, wins, per-role record) are saved in the
 cd server && npm test
 ```
 
-Unit tests for roles, win check, night actions and voting, plus an end-to-end game with 5 socket clients that also checks no role leaks.
+Unit tests for roles, win check, night actions and voting; room tests with real socket clients (join, wrong code, full room, host handover, refresh); and a full-game audit of every event each player receives to prove no role leaks. Weekly manual checklist: [docs/TESTING_CHECKLIST.md](docs/TESTING_CHECKLIST.md). Known bugs: [docs/BUG_LIST.md](docs/BUG_LIST.md).
 
 ## Rules
 
@@ -68,8 +68,11 @@ client/  app/ (home, room/[code]) · components/ · lib/{socket,useRoom}.js
 
 ## Deploy
 
-- Server (Render/Railway): root `server`, start `node index.js`. Set `CLIENT_ORIGIN` to the frontend URL and `NODE_ENV=production` (disables debug bots).
+Step by step: [docs/DEPLOY.md](docs/DEPLOY.md).
+
+- Server (Render): Blueprint in `render.yaml` (root `server`, start `node index.js`, health check `/health`). Set `CLIENT_ORIGIN` to the frontend URL. Bots stay available in production.
 - Client (Vercel): root `client`, env `NEXT_PUBLIC_SERVER_URL` = backend URL.
+- Free Render sleeps when idle. Before a demo: `node tests/checkServer.js <server-url>`.
 
 ## Not built yet (guide weeks 6–8)
 

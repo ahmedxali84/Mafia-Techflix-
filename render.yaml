@@ -1,0 +1,27 @@
+# Render Blueprint for the backend (Socket.IO server).
+# Render dashboard → New → Blueprint → pick this repo. See docs/DEPLOY.md.
+services:
+  - type: web
+    name: mafia-server
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: node index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Vercel URL(s) of the frontend, comma separated, e.g. https://mafia-game.vercel.app
+      - key: CLIENT_ORIGIN
+        sync: false
+      # Optional TURN relay for voice chat behind strict NATs
+      - key: TURN_URL
+        sync: false
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
