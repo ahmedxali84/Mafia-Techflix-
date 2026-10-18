@@ -89,7 +89,24 @@ io.on('connection', (socket) => {
     broadcast(room);
   }
 
-  socket.on('create_room', ({ playerId, name, bots = 0 } = {}, cb = () => {}) => {
+  // Registers a client event safely: a missing/garbage payload becomes {}, a missing
+  // ack becomes a no-op, and a thrown error is reported to the client instead of
+  // crashing the whole server (one bad client must not end every room's game).
+  const on = (event, handler) => {
+    socket.on(event, (payload, ack) => {
+      if (typeof payload === 'function') [payload, ack] = [{}, payload];
+      const data = payload && typeof payload === 'object' ? payload : {};
+      const cb = typeof ack === 'function' ? ack : () => {};
+      try {
+        handler(data, cb);
+      } catch (err) {
+        console.error(`Error in ${event}:`, err);
+        cb({ error: 'Server error' });
+      }
+    });
+  };
+
+  on('create_room', ({ playerId, name, bots = 0 } = {}, cb = () => {}) => {
     if (!playerId || !rm.cleanName(name)) return cb({ error: 'Name is required' });
     const room = rm.createRoom(playerId, name);
     if (bots > 0) rm.addBots(room, Math.min(Number(bots) || 0, 11));
@@ -105,10 +122,10 @@ io.on('connection', (socket) => {
     enter(res.room, res.player);
     cb({ ok: true, code: res.room.code });
   };
-  socket.on('join_room', join);
-  socket.on('rejoin_room', join);
+  on('join_room', join);
+  on('rejoin_room', join);
 
-  socket.on('leave_room', (_p, cb = () => {}) => {
+  on('leave_room', (_p, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ ok: true });
     socket.leave(room.code);
@@ -118,14 +135,14 @@ io.on('connection', (socket) => {
     cb({ ok: true });
   });
 
-  socket.on('start_game', (_p, cb = () => {}) => {
+  on('start_game', (_p, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ error: 'Not in a room' });
     if (room.host !== player.id) return cb({ error: 'Only the host can start' });
     cb(phases.startGame(room, ctx));
   });
 
-  socket.on('play_again', (_p, cb = () => {}) => {
+  on('play_again', (_p, cb = () => {}) => {
     const { room, player } = me();
     if (!room || room.host !== player.id) return cb({ error: 'Only the host can do that' });
     if (room.phase !== 'GAME_OVER') return cb({ error: 'Game not over' });
@@ -133,7 +150,7 @@ io.on('connection', (socket) => {
     cb({ ok: true });
   });
 
-  socket.on('night_action', ({ targetId } = {}, cb = () => {}) => {
+  on('night_action', ({ targetId } = {}, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ error: 'Not in a room' });
     const res = actions.submitNightAction(room, player.id, targetId);
@@ -144,7 +161,7 @@ io.on('connection', (socket) => {
     cb({ ok: true });
   });
 
-  socket.on('cast_vote', ({ targetId } = {}, cb = () => {}) => {
+  on('cast_vote', ({ targetId } = {}, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ error: 'Not in a room' });
     const res = actions.castVote(room, player.id, targetId);
@@ -154,7 +171,7 @@ io.on('connection', (socket) => {
     cb({ ok: true });
   });
 
-  socket.on('chat_message', ({ text } = {}, cb = () => {}) => {
+  on('chat_message', ({ text } = {}, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ error: 'Not in a room' });
     if (Date.now() - (player.lastChat || 0) < 600) return cb({ error: 'Slow down a little' });
@@ -168,7 +185,7 @@ io.on('connection', (socket) => {
   });
 
   // Secret message to one living player (limited per game). Everyone sees only a notice.
-  socket.on('whisper', ({ targetId, text } = {}, cb = () => {}) => {
+  on('whisper', ({ targetId, text } = {}, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ error: 'Not in a room' });
     const res = whispers.sendWhisper(room, player.id, targetId, text);
@@ -180,7 +197,7 @@ io.on('connection', (socket) => {
   });
 
   // The host can fill empty seats with bots so the game always has a table.
-  socket.on('add_bots', ({ count = 4 } = {}, cb = () => {}) => {
+  on('add_bots', ({ count = 4 } = {}, cb = () => {}) => {
     const { room, player } = me();
     if (!room || room.host !== player.id || room.phase !== 'LOBBY') return cb({ error: 'Host only, in lobby' });
     rm.addBots(room, Math.min(Number(count) || 0, 11));
@@ -188,7 +205,7 @@ io.on('connection', (socket) => {
     cb({ ok: true });
   });
 
-  socket.on('remove_bots', (_p, cb = () => {}) => {
+  on('remove_bots', (_p, cb = () => {}) => {
     const { room, player } = me();
     if (!room || room.host !== player.id || room.phase !== 'LOBBY') return cb({ error: 'Host only, in lobby' });
     rm.removeBots(room);
