@@ -162,6 +162,7 @@ io.on('connection', (socket) => {
     if (!room || room.host !== player.id) return cb({ error: 'Only the host can do that' });
     if (room.phase !== 'GAME_OVER') return cb({ error: 'Game not over' });
     phases.backToLobby(room, ctx);
+    rm.dropOffline(room, broadcast);
     cb({ ok: true });
   });
 

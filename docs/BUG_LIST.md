@@ -21,3 +21,24 @@ Not bugs (checked):
 Two ways, both already working:
 1. **In the lobby (host):** "🤖 Fill with bots" / "＋ Add bot" (server-side bots that vote, scheme and chat). `/play` → "Play with bots" starts a table with 5.
 2. **Real network clients:** `node tests/addBots.js <CODE> [count=5] [server-url]`. Fake players join over Socket.IO like real tabs and play (night actions + votes). Good for testing a deployed server.
+
+# Backend audit: 22 Oct 2026 (live code: Mafia-Frontend + Mafia-Backend)
+
+Areas: server timeouts, role leaks, room logic. `npm test`: 82/82 passing.
+
+| # | Severity | Area | Finding | Status |
+|---|---|---|---|---|
+| 6 | High | Rooms `rooms.js` | Host and a guest drop; the host comes back but the guest keeps the host title. Nobody present can Start / Play again / Add bot, so the room is stuck. | **Fixed**: the first player back takes over when the host is away. Test in `timeouts.test.js`. |
+| 7 | High | Rooms `index.js` + `rooms.js` | A player who left mid-game kept their seat after Play again (forever) and was dealt a role in the next game (seen: Mafia), played on autopilot. | **Fixed**: after Play again, offline players get the normal 10 s lobby grace, then lose the seat. Test in `timeouts.test.js`. |
+| 8 | Low (hardening) | Timeouts `rooms.js` | A late cleanup timer deleted `rooms[code]` by code, so it could remove a newer room that reused the same 4-letter code. Reconnecting also didn't cancel the pending deletion. | **Fixed**: deletes only that exact room; rejoin cancels the timer. |
+
+Checked, no problem found:
+- **Role leaks**: every event of full games audited, the classic 7-player game and an 8-player game with Jester + Thief (roles swap mid-game). No leaks, 4/4 runs. Town bots only use public info (claims, vote leader).
+- **Timeouts**: empty lobby removed after 10 s + 15 s; an abandoned game is deleted 5 min after the last human leaves and its phase timers stop; a game whose only human drops still finishes on autopilot (`abandon.e2e.test.js`). No phase can hang: every phase has a timer.
+- **Not code**: free Render sleeps after ~15 min idle (run `tests/checkServer.js` before a demo), and all games live in memory, so a restart/redeploy ends running games.
+
+## Sounds added (client)
+- Night kill: gunshot → glass crack → card tearing → death bell, each timed to its animation in `cards.css`.
+- Vote-out: stamp → whoosh as the card drops → thud.
+- Doctor save: shield ring + rising healing shimmer.
+- Every button / tab / menu link now clicks (`components/ClickSounds.js`), with no double sound where a button already had its own. Mute still silences everything.

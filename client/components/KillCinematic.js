@@ -40,12 +40,16 @@ export default function KillCinematic({ state }) {
   }, [key]);
 
   // Sound and self-removal live with the shown overlay, so an effect re-run can't strand it.
+  // Each sound is timed to its animation in cards.css.
   useEffect(() => {
     if (!show) return;
-    const shot = setTimeout(() => play(show.kind === 'night' ? 'gunshot' : 'stamp'), show.kind === 'night' ? 450 : 560);
+    const cues = show.kind === 'night'
+      ? [[450, 'gunshot'], [500, 'crack'], [1050, 'tear'], [1200, 'toll']] // shot, cracks, card splits, name
+      : [[560, 'stamp'], [1350, 'whoosh'], [2400, 'thud']]; // stamp slams, card drops, lands
+    const timers = cues.map(([ms, name]) => setTimeout(() => play(name), ms));
     const done = setTimeout(() => setShow(null), LENGTH);
     return () => {
-      clearTimeout(shot);
+      timers.forEach(clearTimeout);
       clearTimeout(done);
     };
   }, [show]);
