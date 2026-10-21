@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { socket, emit, getPlayerId, getName } from './socket';
+import { EXTRA_ROLES } from './roles';
 
 // Connects to a room (and re-connects after refresh / network drops).
 // status: 'joining' | 'need_name' | 'ready' | 'error'
@@ -13,7 +14,7 @@ export function useRoom(code) {
   const joined = useRef(false);
 
   async function join(name) {
-    const res = await emit('join_room', { code, playerId: getPlayerId(), name: name ?? getName() });
+    const res = await emit('join_room', { code, playerId: getPlayerId(), name: name ?? getName(), roles: EXTRA_ROLES });
     if (res.error === 'NAME_REQUIRED') return setStatus('need_name');
     if (res.error) {
       setError(res.error);
@@ -25,7 +26,8 @@ export function useRoom(code) {
 
   useEffect(() => {
     const onState = (st) => {
-      setState(st);
+      // Default the newer fields so an older server build can't crash the page.
+      setState({ readyIds: [], history: [], votedIds: [], ...st });
       setChat(st.chat);
     };
     const onChat = (m) => setChat((c) => (c.some((x) => x.id === m.id) ? c : [...c, m].slice(-200)));

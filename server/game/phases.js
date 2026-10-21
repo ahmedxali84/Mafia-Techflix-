@@ -1,4 +1,4 @@
-const { assignRoles, MIN_PLAYERS } = require('./roles');
+const { assignRoles, extrasFor, MIN_PLAYERS } = require('./roles');
 const { winCheck } = require('./winCheck');
 const actions = require('./actions');
 const bots = require('./bots');
@@ -6,8 +6,7 @@ const { resetWhispers } = require('./whispers');
 
 const scale = Number(process.env.TIMER_SCALE) || 1; // set small in tests
 
-// Every phase a room can be in, in the order a round runs.
-// After VOTE_RESULT the loop goes back to NIGHT until winCheck ends it in GAME_OVER.
+// Every phase, in game order (LOBBY → … → GAME_OVER).
 const PHASES = ['LOBBY', 'ROLE_REVEAL', 'NIGHT', 'DAY_RESULT', 'DISCUSSION', 'VOTING', 'VOTE_RESULT', 'GAME_OVER'];
 
 const DURATIONS = {
@@ -27,6 +26,7 @@ function clearTimers(room) {
 }
 
 // ctx: { onChange(room), onPhase(room), onRole(room, player), onCheck(room, check), onGameOver(room) }
+// onRole is sent again to both players when the Thief steals a role.
 function setPhase(room, phase, ctx) {
   clearTimers(room);
   room.phase = phase;
@@ -38,7 +38,10 @@ function setPhase(room, phase, ctx) {
     room.day += 1;
     actions.resetNight(room);
   }
-  if (phase === 'VOTING') actions.resetVotes(room);
+  if (phase === 'DISCUSSION') {
+    actions.resetVotes(room);
+    room.ready = {};
+  }
   ctx.onPhase(room);
   ctx.onChange(room);
   bots.schedule(room, ctx, { scale, after: (r) => { checkEarlyEnd(r, ctx); ctx.onChange(r); } });
@@ -47,15 +50,18 @@ function setPhase(room, phase, ctx) {
 function startGame(room, ctx) {
   if (room.phase !== 'LOBBY') return { error: 'Game already started' };
   if (room.players.length < MIN_PLAYERS) return { error: `Need at least ${MIN_PLAYERS} players` };
-  assignRoles(room.players);
+  assignRoles(room.players, extrasFor(room.players));
   room.players.forEach((p) => {
     p.alive = true;
     p.checks = [];
+    p.stole = null;
+    p.robbed = null;
   });
   resetWhispers(room);
   room.day = 0;
   room.startedAt = Date.now();
   room.claims = [];
+  room.history = []; // what happened each day, shown as the match timeline
   room.result = null;
   room.winner = null;
   room.chat = [];
@@ -81,6 +87,15 @@ function endNight(room, ctx) {
     det.checks.push({ targetId: c.targetId, isMafia: c.isMafia, day: room.day });
     ctx.onCheck(room, det, c);
   }
+  if (res.theft) {
+    const thief = actions.findPlayer(room, res.theft.thiefId);
+    const mark = actions.findPlayer(room, res.theft.targetId);
+    // The thief knows who they robbed; the victim only learns what they lost.
+    thief.stole = { targetId: mark.id, role: res.theft.role, day: room.day };
+    mark.robbed = { role: res.theft.role, day: room.day };
+    ctx.onRole(room, thief);
+    ctx.onRole(room, mark);
+  }
   room.result = {
     type: 'NIGHT',
     day: room.day,
@@ -88,7 +103,9 @@ function endNight(room, ctx) {
     killedName: res.killed ? res.killed.name : null,
     killedRole: res.killed ? res.killed.role : null,
     saved: res.saved,
+    theft: !!res.theft, // public: everyone hears that something was stolen, not by whom
   };
+  record(room, { type: 'NIGHT', name: room.result.killedName, role: room.result.killedRole, saved: res.saved, ...(res.theft && { theft: true }) });
   setPhase(room, 'DAY_RESULT', ctx);
 }
 
@@ -105,7 +122,31 @@ function endVoting(room, ctx) {
     tie: res.tie,
     counts: res.counts,
   };
+  record(room, { type: 'VOTE', name: room.result.eliminatedName, role: room.result.eliminatedRole, tie: res.tie });
+  // The Jester's whole plan: get voted out, and the game ends on the spot with them as the winner.
+  if (res.eliminated && res.eliminated.role === 'JESTER') return finish(room, ctx, 'JESTER');
   setPhase(room, 'VOTE_RESULT', ctx);
+}
+
+// Public events only (deaths are revealed to everyone anyway), so the timeline can be shown to all.
+function record(room, event) {
+  (room.history ||= []).push({ day: room.day, ...event });
+}
+
+// DISCUSSION: marks a living player as ready to vote. Once a majority of the living humans
+// (bots never press it) are ready, the discussion clock is dropped and the table moves
+// straight to VOTING. Returns { ok } or { error }.
+function setReady(room, playerId, ready, ctx) {
+  if (room.phase !== 'DISCUSSION') return { error: 'Not discussion time' };
+  const p = actions.findPlayer(room, playerId);
+  if (!p || !p.alive) return { error: 'Only living players can do that' };
+  room.ready ||= {};
+  if (ready) room.ready[p.id] = true;
+  else delete room.ready[p.id];
+  const humans = room.players.filter((x) => x.alive && !x.bot && x.connected !== false);
+  const readyN = humans.filter((x) => room.ready[x.id]).length;
+  if (humans.length && readyN > humans.length / 2) setPhase(room, 'VOTING', ctx);
+  return { ok: true };
 }
 
 function onPhaseEnd(room, ctx) {
@@ -129,10 +170,11 @@ function onPhaseEnd(room, ctx) {
   }
 }
 
-// Called after a human acts so the phase can end early once everyone is done.
+// Called after anyone acts so the phase can end early: the night once every night role has
+// acted, the vote as soon as its result is decided.
 function checkEarlyEnd(room, ctx) {
   if (room.phase === 'NIGHT' && actions.allNightActionsIn(room)) endNight(room, ctx);
-  else if (room.phase === 'VOTING' && actions.allVotesIn(room)) endVoting(room, ctx);
+  else if (actions.VOTE_PHASES.includes(room.phase) && actions.voteDecided(room)) endVoting(room, ctx);
 }
 
 function backToLobby(room, ctx) {
@@ -145,9 +187,11 @@ function backToLobby(room, ctx) {
     p.alive = true;
     p.role = null;
     p.checks = [];
+    p.stole = null;
+    p.robbed = null;
   });
   ctx.onPhase(room);
   ctx.onChange(room);
 }
 
-module.exports = { PHASES, startGame, setPhase, checkEarlyEnd, backToLobby, clearTimers, DURATIONS };
+module.exports = { PHASES, startGame, setPhase, checkEarlyEnd, setReady, backToLobby, clearTimers, DURATIONS };

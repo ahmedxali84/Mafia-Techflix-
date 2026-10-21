@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { play } from '@/lib/sound';
 
-// endsAt is a server timestamp; serverNow lets us correct for clock differences.
+// Phase countdown for the HUD. endsAt is a server timestamp; serverNow corrects for clock differences.
 export default function Timer({ endsAt, serverNow, phaseMs }) {
   const [ms, setMs] = useState(0);
   const lastTick = useRef(null);
@@ -20,19 +20,17 @@ export default function Timer({ endsAt, serverNow, phaseMs }) {
       }
     };
     tick();
-    const iv = setInterval(tick, 100);
+    const iv = setInterval(tick, 200);
     return () => clearInterval(iv);
   }, [endsAt, serverNow, phaseMs]);
 
   if (!endsAt) return null;
   const left = Math.ceil(ms / 1000);
   const pct = phaseMs ? Math.min(100, (ms / phaseMs) * 100) : 0;
-  const m = Math.floor(left / 60);
-  const s = String(left % 60).padStart(2, '0');
   return (
-    <div className={`timer-wrap ${left <= 5 ? 'urgent' : ''}`} role="timer" aria-label={`${left} seconds left`}>
-      <span className="timer">{m}:{s}</span>
-      <span className="timer-bar"><span style={{ width: `${pct}%` }} /></span>
+    <div className={`timer ${left <= 5 ? 'urgent' : ''}`} role="timer" aria-label={`${left} seconds left`}>
+      <span className="timer-num">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>
+      <span className="timer-bar"><span style={{ transform: `scaleX(${pct / 100})` }} /></span>
     </div>
   );
 }

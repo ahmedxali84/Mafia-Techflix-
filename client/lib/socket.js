@@ -1,6 +1,12 @@
 import { io } from 'socket.io-client';
 
-export const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000';
+// NEXT_PUBLIC_SERVER_URL wins; otherwise production builds use the deployed backend.
+// A localhost value can't work on a deployed site, so production ignores it.
+const DEPLOYED_SERVER = 'https://mafia-backend-z04f.onrender.com';
+const PROD = process.env.NODE_ENV === 'production';
+const fromEnv = process.env.NEXT_PUBLIC_SERVER_URL;
+const usable = fromEnv && !(PROD && /localhost|127\.0\.0\.1/.test(fromEnv));
+export const SERVER_URL = (usable ? fromEnv : PROD ? DEPLOYED_SERVER : 'http://localhost:4000').replace(/\/$/, '');
 
 export const socket = io(SERVER_URL, {
   autoConnect: false,

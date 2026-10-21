@@ -3,9 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { emit } from '@/lib/socket';
 import { play } from '@/lib/sound';
 import Avatar from './Avatar';
+import Icon from './Icon';
 
-const LABEL = { public: '💬 Town chat', mafia: '🔪 Mafia chat (secret)', dead: '👻 Ghost chat' };
-const REACTIONS = ['👍', '😂', '🤔', '😱', '🔥'];
+const CHANNEL = {
+  public: { label: 'Town chat', note: 'Everyone can read this' },
+  mafia: { label: 'Mafia channel', note: 'Secret — only the Mafia can read this' },
+  dead: { label: 'Ghost chat', note: 'Only the dead can read this' },
+};
+const QUICK = ['👍', '😂', '🤔', '😱', '🔥'];
 const WHISPER_MAX = 140;
 
 export default function Chat({ messages, channel, myId, players = [], whispersLeft = 0, canWhisper = false }) {
@@ -41,7 +46,7 @@ export default function Chat({ messages, channel, myId, players = [], whispersLe
   }, [messages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (box.current) box.current.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' });
+    if (box.current) box.current.scrollTop = box.current.scrollHeight;
   }, [messages.length]);
 
   function switchMode(m) {
@@ -75,94 +80,89 @@ export default function Chat({ messages, channel, myId, players = [], whispersLe
   }
 
   const noneLeft = whispersLeft <= 0;
-  const heading = whisperOn ? '🤫 Whisper' : channel ? LABEL[channel] : '💬 Chat';
+  const ch = CHANNEL[channel];
 
   return (
-    <section className={`chat ${whisperOn ? 'whisper-mode' : channel || ''}`}>
-      <div className="chat-head">
-        <h3>{heading}</h3>
-        {canWhisper && (
+    <section className={`chat ${whisperOn ? 'ch-whisper' : `ch-${channel || 'closed'}`}`} aria-label="Chat">
+      <div className="chat-top">
+        {canWhisper ? (
           <div className="seg" role="tablist" aria-label="Chat mode">
-            <button role="tab" aria-selected={!whisperOn} className={!whisperOn ? 'on' : ''} onClick={() => switchMode('public')}>💬 Town</button>
-            <button role="tab" aria-selected={whisperOn} className={`w ${whisperOn ? 'on' : ''}`} onClick={() => switchMode('whisper')}>
-              🤫 Whisper
+            <button role="tab" aria-selected={!whisperOn} className={!whisperOn ? 'on' : ''} onClick={() => switchMode('public')}>
+              <Icon name="chat" /> Town
+            </button>
+            <button role="tab" aria-selected={whisperOn} className={`seg-w ${whisperOn ? 'on' : ''}`} onClick={() => switchMode('whisper')}>
+              <Icon name="whisper" /> Whisper
               <span className="pips" aria-label={`${whispersLeft} whispers left`}>
                 {Array.from({ length: Math.max(2, whispersLeft) }, (_, i) => <i key={i} className={i < whispersLeft ? 'full' : ''} />)}
               </span>
-              {newWhispers > 0 && !whisperOn && <b className="ping">{newWhispers}</b>}
+              {newWhispers > 0 && !whisperOn && <b className="badge">{newWhispers}</b>}
             </button>
           </div>
+        ) : (
+          <span className="chat-channel"><i className="chat-dot" /> {ch ? ch.label : 'Chat closed'}</span>
         )}
+        <small className="chat-note">{whisperOn ? 'Fully private — nobody else knows you whispered' : ch ? ch.note : 'You can read, but not write right now'}</small>
       </div>
 
-      <div className="messages" ref={box} aria-live="polite">
-        {messages.length === 0 && <p className="muted small empty">No messages yet — say something.</p>}
+      <div className="chat-log" ref={box} aria-live="polite">
+        {messages.length === 0 && <p className="chat-empty">No messages yet.</p>}
         {messages.map((m) => {
-          if (m.channel === 'notice') {
-            if (m.from === myId || m.to === myId) return null; // your own whisper bubble already shows it
-            return <div key={m.id} className="notice"><span>🤫</span> {m.name} whispered to {m.toName}</div>;
-          }
           if (m.channel === 'whisper') {
             const mine = m.from === myId;
             return (
-              <div key={m.id} className={`bubble whisper ${mine ? 'mine' : ''}`}>
-                <b>🤫 {mine ? `You → ${m.toName}` : `${m.name} → you`}</b>
-                <span>{m.text}</span>
-              </div>
+              <p key={m.id} className="msg msg-whisper">
+                <b>{mine ? `You → ${m.toName}` : `${m.name} → you`}</b> {m.text}
+              </p>
             );
           }
+          const mine = m.from === myId;
           return (
-            <div key={m.id} className={`bubble ${m.channel} ${m.from === myId ? 'mine' : ''}`}>
-              {m.from !== myId && <b>{m.name}</b>}
-              <span>{m.text}</span>
-            </div>
+            <p key={m.id} className={`msg msg-${m.channel} ${mine ? 'mine' : ''}`}>
+              {m.channel === 'mafia' && <span className="msg-ch">[Mafia]</span>}
+              {m.channel === 'dead' && <span className="msg-ch">[Ghost]</span>}
+              <b>{mine ? 'You' : m.name}</b> {m.text}
+            </p>
           );
         })}
       </div>
 
       {whisperOn ? (
-        <div className="whisper-box">
-          {noneLeft ? (
-            <p className="whisper-empty">🤐 You are out of whispers. Choose your words in town chat now.</p>
-          ) : (
-            <>
-              <p className="whisper-hint">🔒 Only they can read it — but <b>everyone</b> will see that you whispered.</p>
-              <div className="chips" role="radiogroup" aria-label="Whisper to">
-                {targets.map((p) => (
-                  <button key={p.id} type="button" role="radio" aria-checked={target === p.id} className={`chip ${target === p.id ? 'on' : ''}`} onClick={() => { play('select'); setTarget(p.id); }}>
-                    <Avatar name={p.name} size={26} />
-                    <span>{p.name}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        noneLeft ? (
+          <p className="whisper-out"><Icon name="lock" /> You are out of whispers for this game.</p>
+        ) : (
+          <div className="whisper-to" role="radiogroup" aria-label="Whisper to">
+            {targets.map((p) => (
+              <button key={p.id} type="button" role="radio" aria-checked={target === p.id} className={`wchip ${target === p.id ? 'on' : ''}`} onClick={() => { play('select'); setTarget(p.id); }}>
+                <Avatar name={p.name} size={22} />
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )
       ) : (
-        <div className="reactions">
-          {REACTIONS.map((r) => (
-            <button key={r} className="react" disabled={!channel} onClick={() => sendPublic(r)} aria-label={`Send ${r}`}>{r}</button>
+        <div className="quick" aria-label="Quick reactions">
+          {QUICK.map((r) => (
+            <button key={r} disabled={!channel} onClick={() => sendPublic(r)} aria-label={`Send ${r}`}>{r}</button>
           ))}
         </div>
       )}
 
-      <form onSubmit={submit} className="row">
-        <div className="field">
-          <input
-            className="input"
-            maxLength={whisperOn ? WHISPER_MAX : 300}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={whisperOn ? noneLeft : !channel}
-            placeholder={whisperOn ? (target ? `Whisper to ${nameOf(target)}…` : 'Pick someone, then type…') : channel ? 'Type a message…' : 'Chat is closed right now'}
-          />
-          {whisperOn && !noneLeft && <small className="count">{WHISPER_MAX - text.length}</small>}
-        </div>
-        <button className={`btn ${whisperOn ? 'violet' : 'primary'} ${sent ? 'sent' : ''}`} disabled={whisperOn ? noneLeft || !text.trim() || !target : !channel || !text.trim()}>
-          {sent ? '✓ Sent' : whisperOn ? '🤫 Send' : 'Send'}
+      <form onSubmit={submit} className="chat-input">
+        <input
+          className="field"
+          maxLength={whisperOn ? WHISPER_MAX : 300}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          disabled={whisperOn ? noneLeft : !channel}
+          aria-label="Message"
+          placeholder={whisperOn ? (target ? `Whisper to ${nameOf(target)}…` : 'Pick someone, then type…') : channel ? 'Type a message…' : 'Chat is closed right now'}
+        />
+        {whisperOn && !noneLeft && <small className="chat-count">{WHISPER_MAX - text.length}</small>}
+        <button className={`b ${whisperOn ? 'b-violet' : 'b-primary'}`} disabled={whisperOn ? noneLeft || !text.trim() || !target : !channel || !text.trim()}>
+          {sent ? <><Icon name="check" /> Sent</> : 'Send'}
         </button>
       </form>
-      {err && <p className="error small">{err}</p>}
+      {err && <p className="err">{err}</p>}
     </section>
   );
 }

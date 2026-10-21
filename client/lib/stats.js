@@ -1,6 +1,6 @@
 // Per-browser game stats, kept in localStorage (no server / database).
 const KEY = 'mafia_stats';
-const ROLES = ['MAFIA', 'VILLAGER', 'DOCTOR', 'DETECTIVE'];
+const ROLES = ['MAFIA', 'VILLAGER', 'DOCTOR', 'DETECTIVE', 'JESTER', 'THIEF'];
 
 function empty() {
   return {

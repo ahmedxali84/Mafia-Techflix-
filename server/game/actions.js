@@ -1,6 +1,9 @@
 const { shuffle } = require('./roles');
 
-const NIGHT_ROLES = ['MAFIA', 'DOCTOR', 'DETECTIVE'];
+const NIGHT_ROLES = ['MAFIA', 'DOCTOR', 'DETECTIVE', 'THIEF'];
+// Votes are only cast in the voting round. A table that has made up its mind skips the rest of
+// the discussion with a ready-to-vote majority (phases.setReady) instead of voting early.
+const VOTE_PHASES = ['VOTING'];
 
 function findPlayer(room, id) {
   return room.players.find((p) => p.id === id);
@@ -24,6 +27,7 @@ function submitNightAction(room, playerId, targetId) {
   if (!target || !target.alive) return { error: 'Invalid target' };
   if (me.role === 'MAFIA' && target.role === 'MAFIA') return { error: 'Cannot target your team' };
   if (me.role === 'DETECTIVE' && target.id === me.id) return { error: 'Cannot investigate yourself' };
+  if (me.role === 'THIEF' && target.id === me.id) return { error: 'Cannot rob yourself' };
   room.night.actions[playerId] = targetId;
   return { ok: true };
 }
@@ -35,8 +39,9 @@ function allNightActionsIn(room) {
     .every((p) => room.night.actions[p.id]);
 }
 
-// Resolves the night. Applies the kill and returns what happened.
-// { killed: player|null, saved: boolean, checks: [{detectiveId, targetId, isMafia}] }
+// Resolves the night. Applies the kill and the theft and returns what happened.
+// { killed: player|null, saved: boolean, checks: [{detectiveId, targetId, isMafia}],
+//   theft: {thiefId, targetId, role}|null }
 function resolveNight(room) {
   const { actions } = room.night;
 
@@ -75,12 +80,30 @@ function resolveNight(room) {
     checks.push({ detectiveId: d.id, targetId: t.id, isMafia: t.role === 'MAFIA' });
   }
 
-  return { killed, saved, checks };
+  return { killed, saved, checks, theft: steal(room) };
+}
+
+// The Thief moves last, after the kill and the checks (which see the roles as they were at
+// dusk). They take their mark's role and team, and the mark wakes up a plain Villager.
+// Robbing a corpse gets nothing. A Thief who survives the night is never a Thief again:
+// without a successful theft they settle down as a Villager.
+function steal(room) {
+  const thief = room.players.find((p) => p.alive && p.role === 'THIEF');
+  if (!thief) return null;
+  const mark = findPlayer(room, room.night.actions[thief.id]);
+  if (!mark || !mark.alive) {
+    thief.role = 'VILLAGER';
+    return null;
+  }
+  const role = mark.role;
+  thief.role = role;
+  mark.role = 'VILLAGER';
+  return { thiefId: thief.id, targetId: mark.id, role };
 }
 
 // Records a vote. targetId may be 'SKIP'.
 function castVote(room, voterId, targetId) {
-  if (room.phase !== 'VOTING') return { error: 'Not voting time' };
+  if (!VOTE_PHASES.includes(room.phase)) return { error: 'Not voting time' };
   const voter = findPlayer(room, voterId);
   if (!voter || !voter.alive) return { error: 'Dead players cannot vote' };
   if (targetId !== 'SKIP') {
@@ -94,6 +117,16 @@ function castVote(room, voterId, targetId) {
 
 function allVotesIn(room) {
   return room.players.filter((p) => p.alive).every((p) => room.votes[p.id]);
+}
+
+// True once the result can no longer change: everyone has voted, or one choice (a player or
+// SKIP) already holds more than half of the living votes, so nothing else can catch up.
+function voteDecided(room) {
+  if (allVotesIn(room)) return true;
+  const alive = room.players.filter((p) => p.alive).length;
+  const counts = {};
+  for (const t of Object.values(room.votes)) counts[t] = (counts[t] || 0) + 1;
+  return Object.values(counts).some((c) => c > alive / 2);
 }
 
 // Tallies votes. The player with the most votes is eliminated; a tie (or skip
@@ -121,6 +154,7 @@ function tallyVotes(room) {
 
 module.exports = {
   NIGHT_ROLES,
+  VOTE_PHASES,
   findPlayer,
   resetNight,
   resetVotes,
@@ -129,5 +163,6 @@ module.exports = {
   resolveNight,
   castVote,
   allVotesIn,
+  voteDecided,
   tallyVotes,
 };

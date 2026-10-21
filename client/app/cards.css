@@ -1,0 +1,117 @@
+/* ───────── Role cards: the illustrated art in one shared frame ───────── */
+.rcard { --tone: var(--gold); --r: 14px; position: relative; margin: 0; aspect-ratio: var(--ar, 0.64); border-radius: var(--r); overflow: hidden; background: #0c0506;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tone) 75%, #fff 10%), 0 0 0 4px #0b0405, 0 0 0 5px rgba(224, 168, 74, 0.45),
+    0 26px 60px rgba(0, 0, 0, 0.7), 0 0 46px color-mix(in srgb, var(--tone) 26%, transparent); }
+.rcard img { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; -webkit-user-drag: none; }
+/* Inner gold hairline + a soft vignette so every card sits in the same frame */
+.rcard::after { content: ''; position: absolute; inset: 6px; border-radius: calc(var(--r) - 5px); pointer-events: none;
+  border: 1px solid rgba(224, 168, 74, 0.38); box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.45); }
+.rcard-fallback { display: grid; place-items: center; height: 100%; font: 700 1.4rem var(--font-display); color: var(--tone); text-transform: uppercase; letter-spacing: 0.12em; }
+.rcard-sheen { position: absolute; inset: -20%; pointer-events: none; opacity: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 244, 228, 0.22) 49%, rgba(255, 244, 228, 0.06) 54%, transparent 62%); transform: translateX(-60%); }
+.rcard.shine .rcard-sheen { animation: rcard-sheen 1.3s 0.15s cubic-bezier(0.3, 0.6, 0.3, 1) both; }
+@keyframes rcard-sheen { 0% { opacity: 1; transform: translateX(-60%); } 100% { opacity: 1; transform: translateX(60%); } }
+.rcard.dead img { filter: grayscale(1) brightness(0.55) contrast(1.1); }
+
+.rcard-lg { width: 100%; }
+.rcard-fill { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+.rcard-md { width: 200px; }
+.rcard-sm { --r: 6px; width: 46px; flex: none; box-shadow: 0 0 0 1px color-mix(in srgb, var(--tone) 70%, transparent), 0 4px 10px rgba(0, 0, 0, 0.5); }
+.rcard-sm::after { inset: 2px; border-radius: 4px; box-shadow: none; border-color: rgba(224, 168, 74, 0.25); }
+
+.rcard-back { --tone: var(--accent); }
+.rcard-back-art { display: block; width: 100%; height: 100%; }
+
+/* ───────── Role reveal: the card is dealt face down, then flips ───────── */
+.deal-stage { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 380px); align-items: center; justify-content: center; gap: 36px; padding: 8px 0 16px; }
+/* Sized by width and by the screen's height, so the whole card is always visible */
+.deal-tilt { width: min(100%, 300px, max(150px, calc((100dvh - 190px) * var(--ar, 0.64)))); perspective: 1400px; animation: deal-in 0.7s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+.deal { position: relative; width: 100%; aspect-ratio: var(--ar, 0.64); transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 0deg)) rotateY(calc(var(--ry, 0deg) + var(--flip, 0deg))); transition: transform 0.25s ease-out; }
+.deal.flipped { --flip: 180deg; transition: transform 1s cubic-bezier(0.3, 0.9, 0.3, 1); }
+.deal.flipped.settled { transition: transform 0.25s ease-out; }
+.deal-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.deal-front { transform: rotateY(180deg); }
+@keyframes deal-in { from { opacity: 0; transform: translateY(40px) rotateZ(-6deg) scale(0.9); } }
+
+.reveal-info { display: grid; justify-items: start; gap: 12px; opacity: 0; transform: translateY(14px); transition: opacity 0.6s 0.55s, transform 0.6s 0.55s; }
+.reveal-info.on { opacity: 1; transform: none; }
+.reveal-info .h-xl { margin: 0; color: var(--tone); text-shadow: 0 0 30px color-mix(in srgb, var(--tone) 40%, transparent); }
+.reveal-info p { margin: 0; color: #d9cdc8; }
+.reveal-info .goal b { margin-right: 6px; font: 700 0.9rem var(--font-hud); text-transform: uppercase; letter-spacing: 0.1em; color: var(--tone); }
+
+/* Phones: card and details side by side, so the whole reveal fits on one screen */
+@media (max-width: 760px) {
+  .deal-stage { grid-template-columns: minmax(0, 46%) minmax(0, 1fr); align-items: start; gap: 14px; padding-top: 4px; }
+  .deal-tilt { width: 100%; }
+  .reveal-info { gap: 8px; transition-delay: 0.3s; }
+  .reveal-info .h-xl { font-size: clamp(1.6rem, 8vw, 2.3rem); }
+  .reveal-info p { font-size: 0.88rem; line-height: 1.4; }
+  .reveal-info .team-tag { padding: 3px 8px; font-size: 0.72rem; letter-spacing: 0.12em; }
+  .reveal-info small { font-size: 0.75rem; }
+}
+@media (max-width: 760px) and (min-height: 820px) {
+  .deal-stage { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 18px; }
+  .deal-tilt { width: min(64vw, 270px, max(150px, calc((100dvh - 330px) * var(--ar, 0.64)))); }
+  .reveal-info { justify-items: center; text-align: center; }
+}
+
+/* ───────── Kill cinematic: a short overlay when someone dies ───────── */
+.kill { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; pointer-events: none; overflow: hidden;
+  animation: kill-veil 3.6s ease both; background: radial-gradient(ellipse at 50% 45%, rgba(40, 0, 4, 0.82), rgba(4, 0, 1, 0.96) 70%); }
+@keyframes kill-veil { 0% { opacity: 0; } 8%, 84% { opacity: 1; } 100% { opacity: 0; } }
+.kill-flash { position: absolute; inset: 0; background: radial-gradient(circle at var(--hx, 58%) var(--hy, 38%), rgba(255, 236, 200, 0.9), rgba(255, 120, 40, 0.35) 22%, transparent 55%);
+  opacity: 0; animation: kill-flash 0.32s 0.45s ease-out both; }
+@keyframes kill-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.kill-shake { animation: kill-shake 0.5s 0.47s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; display: grid; justify-items: center; gap: 18px; }
+@keyframes kill-shake { 10%, 90% { transform: translate(-2px, 1px); } 20%, 80% { transform: translate(4px, -2px); } 30%, 50%, 70% { transform: translate(-7px, 3px) rotate(-0.6deg); } 40%, 60% { transform: translate(7px, -3px) rotate(0.6deg); } }
+
+.kill-card { position: relative; width: min(46vw, 230px, max(120px, calc((100dvh - 190px) * 0.64))); animation: kill-card-in 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+@keyframes kill-card-in { from { opacity: 0; transform: scale(1.18) translateY(-20px); } }
+/* The card is drawn twice and split along a diagonal: the halves slide apart after the shot. */
+.kill-half { position: absolute; inset: 0; }
+.kill-half .rcard { width: 100%; }
+.kill-half.kh-top { clip-path: polygon(0 0, 100% 0, 100% 38%, 0 62%); animation: kill-split-a 1.6s 1.05s cubic-bezier(0.5, 0, 0.75, 0) both; }
+.kill-half.kh-bot { clip-path: polygon(0 62%, 100% 38%, 100% 100%, 0 100%); animation: kill-split-b 1.6s 1.05s cubic-bezier(0.5, 0, 0.75, 0) both; }
+.kill-ghost { visibility: hidden; }
+@keyframes kill-split-a { to { transform: translate(-14px, -26px) rotate(-7deg); opacity: 0.15; } }
+@keyframes kill-split-b { to { transform: translate(16px, 40px) rotate(9deg); opacity: 0.15; } }
+.kill-half .rcard img { animation: kill-drain 0.6s 0.55s ease both; }
+@keyframes kill-drain { to { filter: grayscale(0.85) brightness(0.6) sepia(0.4) hue-rotate(-30deg) saturate(2.2); } }
+
+/* Bullet hole, cracks and blood, drawn over the card */
+.kill-hit { position: absolute; inset: 0; overflow: visible; pointer-events: none; animation: kill-hit-out 1s 1.3s ease-in forwards; }
+@keyframes kill-hit-out { to { opacity: 0; transform: translateY(24px); } }
+.kill-hit .hole { opacity: 0; animation: kill-pop 0.12s 0.47s ease-out both; }
+.kill-hit .crack { stroke-dasharray: 140; stroke-dashoffset: 140; animation: kill-crack 0.35s 0.5s ease-out forwards; }
+.kill-hit .blood { transform-box: fill-box; transform-origin: center; transform: scale(0); animation: kill-splat 0.35s 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) forwards; }
+.kill-hit .drip { transform-box: fill-box; transform-origin: top; transform: scaleY(0); animation: kill-drip 1.8s 0.85s ease-in forwards; }
+@keyframes kill-pop { to { opacity: 1; } }
+@keyframes kill-crack { to { stroke-dashoffset: 0; } }
+@keyframes kill-splat { to { transform: scale(1); } }
+@keyframes kill-drip { to { transform: scaleY(1); } }
+
+.kill-text { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; text-align: center; animation: kill-text 0.6s 1.2s ease-out both; }
+@keyframes kill-text { from { opacity: 0; transform: translateY(12px); letter-spacing: 0.4em; } }
+.kill-text .label { color: #ff8a8f; }
+.kill-text strong { font: 700 clamp(1.9rem, 6vw, 3rem) / 1.05 var(--font-display); color: #f4ebe2; text-shadow: 0 0 30px rgba(211, 32, 42, 0.7); }
+.kill-text .kill-role { display: flex; align-items: center; gap: 8px; color: var(--muted); font: 500 0.95rem var(--font-hud); text-transform: uppercase; letter-spacing: 0.14em; }
+
+/* Vote variant: a red stamp slams onto the card, which then drops away */
+.kill.vote .kill-half.kh-top, .kill.vote .kill-half.kh-bot { clip-path: none; animation: kill-drop 1.3s 1.35s cubic-bezier(0.55, 0, 0.8, 0.2) both; }
+.kill.vote .kill-half.kh-bot { display: none; }
+@keyframes kill-drop { to { transform: translateY(60px) rotate(6deg); opacity: 0.2; } }
+.kill-stamp { position: absolute; left: 50%; top: 46%; padding: 6px 14px; border: 4px solid #e5484d; border-radius: 6px; color: #e5484d;
+  font: 800 clamp(1.4rem, 5vw, 2rem) / 1 var(--font-hud); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; background: rgba(20, 2, 4, 0.55);
+  transform: translate(-50%, -50%) rotate(-14deg) scale(3); opacity: 0; animation: kill-stamp 0.32s 0.55s cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+@keyframes kill-stamp { to { transform: translate(-50%, -50%) rotate(-14deg) scale(1); opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .deal-tilt, .deal, .deal.flipped, .reveal-info { animation: none; transition: none; }
+  .kill-flash, .kill-hit .crack, .kill-hit .drip { display: none; }
+  .kill-hit { animation: none; }
+  .kill-shake, .kill-card, .kill-half.kh-top, .kill-half.kh-bot, .kill-stamp, .kill-text { animation: none; }
+  .kill-stamp { opacity: 1; transform: translate(-50%, -50%) rotate(-14deg); }
+  .kill-hit .hole, .kill-hit .blood { animation: none; opacity: 1; transform: none; }
+  .rcard.shine .rcard-sheen { animation: none; }
+}

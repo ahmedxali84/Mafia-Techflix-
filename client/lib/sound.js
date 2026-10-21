@@ -31,6 +31,27 @@ function tone(freq, start, dur, { type = 'sine', gain = 0.08, slideTo } = {}) {
   o.stop(t + dur + 0.05);
 }
 
+// A burst of filtered white noise (gunshots, impacts).
+function noise(start, dur, { gain = 0.3, freq = 1800, q = 0.7 } = {}) {
+  const c = audio();
+  if (!c) return;
+  const t = c.currentTime + start;
+  const len = Math.ceil(c.sampleRate * dur);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const f = c.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = freq;
+  f.Q.value = q;
+  const g = c.createGain();
+  g.gain.value = gain;
+  src.connect(f).connect(g).connect(c.destination);
+  src.start(t);
+}
+
 const SOUNDS = {
   click: () => tone(660, 0, 0.07, { type: 'triangle', gain: 0.05 }),
   select: () => { tone(520, 0, 0.06, { type: 'triangle' }); tone(780, 0.05, 0.08, { type: 'triangle' }); },
@@ -41,6 +62,8 @@ const SOUNDS = {
   night: () => { tone(330, 0, 0.9, { gain: 0.06, slideTo: 165 }); tone(247, 0.2, 1.1, { gain: 0.05, slideTo: 123 }); },
   day: () => { [523, 659, 784].forEach((f, i) => tone(f, i * 0.12, 0.5, { gain: 0.06 })); },
   death: () => { tone(300, 0, 0.7, { type: 'sawtooth', gain: 0.07, slideTo: 60 }); tone(90, 0.1, 0.8, { type: 'sine', gain: 0.1 }); },
+  gunshot: () => { noise(0, 0.35, { gain: 0.45, freq: 2600 }); noise(0.01, 0.9, { gain: 0.25, freq: 380 }); tone(70, 0, 0.5, { gain: 0.12, slideTo: 40 }); },
+  stamp: () => { noise(0, 0.18, { gain: 0.35, freq: 700 }); tone(110, 0, 0.25, { gain: 0.12, slideTo: 60 }); },
   saved: () => { tone(660, 0, 0.2); tone(990, 0.15, 0.4); },
   win: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, 0.55, { gain: 0.07 })); },
   lose: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, i * 0.2, 0.6, { type: 'triangle', gain: 0.07 })); },

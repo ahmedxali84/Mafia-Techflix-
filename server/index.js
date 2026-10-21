@@ -9,11 +9,14 @@ const phases = require('./game/phases');
 const actions = require('./game/actions');
 const { teamOf } = require('./game/roles');
 const whispers = require('./game/whispers');
-const { stateFor, chatChannel, canSeeMessage } = require('./view');
+const { stateFor, chatChannel, canSeeMessage, canWriteMafiaChat } = require('./view');
 
 const PORT = process.env.PORT || 4000;
-// Set CLIENT_ORIGIN (comma separated) in production; '*' only for local testing.
-const ORIGIN = process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(',') : '*';
+// Sites allowed to talk to this server (CORS). CLIENT_ORIGIN (comma separated) replaces the defaults.
+const DEFAULT_ORIGINS = ['https://mafia-frontend-lyart.vercel.app', 'http://localhost:3000', 'http://127.0.0.1:3000'];
+const ORIGIN = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean)
+  : DEFAULT_ORIGINS;
 const DEBUG = process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEBUG === 'true';
 
 // WebRTC servers for voice chat. STUN finds a direct path; TURN relays audio when that fails.
@@ -97,6 +100,8 @@ io.on('connection', (socket) => {
     return room && player && player.socketId === socket.id ? { room, player } : {};
   };
 
+  // `roles`: the extra roles this client can show (see roles.extrasFor). Refreshed on every join,
+  // since a reload may bring a newer client.
   // Takes this socket out of its current room (as if the player pressed "Leave").
   function leave() {
     const { room, player } = me();
@@ -109,10 +114,11 @@ io.on('connection', (socket) => {
     else rm.disconnect(room, player.id, broadcast), broadcast(room);
   }
 
-  function enter(room, player) {
+  function enter(room, player, roles) {
     // Same socket going to another room (e.g. browser Back, then create/join): leave the old one
     // first, otherwise it stays there as a "connected" ghost and keeps getting that room's events.
     if (current && current.code !== room.code) leave();
+    player.knows = Array.isArray(roles) ? roles.filter((r) => typeof r === 'string').slice(0, 10) : [];
     if (player.socketId !== socket.id) player.voice = null; // a new tab/refresh must rejoin voice
     player.socketId = socket.id;
     current = { code: room.code, playerId: player.id };
@@ -120,20 +126,20 @@ io.on('connection', (socket) => {
     broadcast(room);
   }
 
-  socket.on('create_room', ({ playerId, name, bots = 0 } = {}, cb = () => {}) => {
+  socket.on('create_room', ({ playerId, name, bots = 0, roles } = {}, cb = () => {}) => {
     if (!playerId || !rm.cleanName(name)) return cb({ error: 'Name is required' });
     const room = rm.createRoom(playerId, name);
     if (bots > 0) rm.addBots(room, Math.min(Number(bots) || 0, 11));
-    enter(room, room.players[0]);
+    enter(room, room.players[0], roles);
     cb({ ok: true, code: room.code });
   });
 
   // Fresh join or reconnect (same playerId gets its old seat back).
-  const join = ({ code, playerId, name } = {}, cb = () => {}) => {
+  const join = ({ code, playerId, name, roles } = {}, cb = () => {}) => {
     if (!playerId) return cb({ error: 'Missing player id' });
     const res = rm.joinRoom(code, playerId, name);
     if (res.error) return cb({ error: res.error });
-    enter(res.room, res.player);
+    enter(res.room, res.player, roles);
     cb({ ok: true, code: res.room.code });
   };
   socket.on('join_room', join);
@@ -180,26 +186,38 @@ io.on('connection', (socket) => {
     cb({ ok: true });
   });
 
-  socket.on('chat_message', ({ text } = {}, cb = () => {}) => {
+  // `channel: 'mafia'` writes to the Mafia's private channel (open day and night when there
+  // are two or more Mafia); otherwise the message goes to the player's current channel.
+  // During discussion: "I'm ready to vote". When every living human is ready, voting starts.
+  socket.on('ready_vote', ({ ready = true } = {}, cb = () => {}) => {
+    const { room, player } = me();
+    if (!room) return cb({ error: 'Not in a room' });
+    const res = phases.setReady(room, player.id, !!ready, ctx);
+    if (res.error) return cb(res);
+    if (room.phase === 'DISCUSSION') broadcast(room); // otherwise setPhase already sent the new state
+    cb({ ok: true });
+  });
+
+  socket.on('chat_message', ({ text, channel: wanted } = {}, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ error: 'Not in a room' });
     if (Date.now() - (player.lastChat || 0) < 600) return cb({ error: 'Slow down a little' });
     player.lastChat = Date.now();
     const clean = String(text || '').trim().slice(0, 300);
     if (!clean) return cb({ error: 'Empty message' });
-    const channel = chatChannel(room, player);
+    if (wanted === 'mafia' && !canWriteMafiaChat(room, player)) return cb({ error: 'The Mafia channel is closed' });
+    const channel = wanted === 'mafia' ? 'mafia' : chatChannel(room, player);
     if (!channel) return cb({ error: 'You cannot chat right now' });
     postChat(room, player, clean, channel);
     cb({ ok: true });
   });
 
-  // Secret message to one living player (limited per game). Everyone sees only a notice.
+  // Secret message to one living player (limited per game). Nobody else learns it happened.
   socket.on('whisper', ({ targetId, text } = {}, cb = () => {}) => {
     const { room, player } = me();
     if (!room) return cb({ error: 'Not in a room' });
     const res = whispers.sendWhisper(room, player.id, targetId, text);
     if (res.error) return cb(res);
-    deliver(room, res.notice);
     deliver(room, res.whisper);
     broadcast(room); // refreshes the sender's whispers-left counter
     cb({ ok: true, whispersLeft: player.whispersLeft });
