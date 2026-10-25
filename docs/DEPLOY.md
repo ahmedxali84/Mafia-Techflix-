@@ -44,7 +44,7 @@ Back in Render → `mafia-server` → Environment → `CLIENT_ORIGIN` = the Verc
 
 | Where | Variable | Value |
 |---|---|---|
-| Vercel | `NEXT_PUBLIC_DISCORD_URL` | Your invite, e.g. `https://discord.gg/abc123` (Server settings → Invites → never expires). Only `discord.gg/…` or `discord.com/invite/…` links are accepted; unset = Discord buttons hidden. Redeploy after setting it. |
+| Vercel | `NEXT_PUBLIC_DISCORD_URL` | Optional. The game already uses the team server **https://discord.gg/SCaPFuzkGp** ("Mafia Web Game", never expires). Set this only to switch to another invite; only `discord.gg/…` or `discord.com/invite/…` links are accepted. Redeploy after changing it. |
 | Render | `FEEDBACK_TOKEN` | A long random secret. Read feedback with `curl -H "Authorization: Bearer <token>" https://<backend>/feedback`. Unset = nobody can read it over HTTP. |
 | Render | `FEEDBACK_FILE` | Optional path for the feedback file. The free Render disk is wiped on every deploy, so read/download feedback before redeploying (or add a Render disk). |
 

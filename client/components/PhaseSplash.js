@@ -13,7 +13,12 @@ export default function PhaseSplash({ phase, day }) {
 
   useEffect(() => {
     const s = SPLASH[phase];
-    if (!s) return;
+    // A phase without a banner clears any old one: if the last phase ended before its timer,
+    // that timer was cancelled and the banner would otherwise stay in the page.
+    if (!s) {
+      setShow(null);
+      return;
+    }
     setShow({ ...s, key: `${phase}-${day}` });
     const t = setTimeout(() => setShow(null), 1700);
     return () => clearTimeout(t);
