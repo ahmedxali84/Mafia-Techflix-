@@ -640,11 +640,21 @@
   .menubar .fb-trigger-text { display: none; }
   .menubar .menu-fb { padding: 0 11px; font-size: 1.05rem; }
 }
-/* "How to play" becomes "Help" on the smallest phones */
+/* "How to play" becomes "Help" on phones (measured: the full label doesn't fit below 480 px) */
 .nav-short { display: none; }
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .nav-long { display: none; }
   .nav-short { display: inline; }
+}
+@media (max-width: 400px) {
   .menu-nav a, .menu-nav button { padding: 0 6px; letter-spacing: 0.03em; font-size: 0.85rem; }
   .menubar-end { gap: 4px; }
+}
+/* Smallest phones (iPhone SE, Galaxy S9+: 320 px): tighter spacing, logo and buttons */
+@media (max-width: 359px) {
+  .menubar { gap: 6px; padding: 0 8px; }
+  .brand { font-size: 0.82rem; letter-spacing: 0.12em; }
+  .menu-nav a, .menu-nav button { padding: 0 4px; font-size: 0.8rem; letter-spacing: 0; }
+  .menubar .menu-fb { padding: 0 9px; }
+  .menubar-end .hud-btn { width: 36px; height: 36px; }
 }
