@@ -54,3 +54,11 @@ Checked, no problem found:
 | 11 | Low | Feedback dialog | Opened from the menu, the dialog inherited the nav-bar button styles (stars were 14 px). | **Fixed**: the dialog is rendered at page level (portal). |
 
 Not bugs (checked): headless Chrome can't go below 500 px wide on Windows, so its "phone" screenshots look cut off; the real phone checks were done with device emulation in the Browser pane.
+
+# Device test: 25 Oct 2026 (real engines via Playwright)
+
+Safari/WebKit 18.2 (iPhone 13, iPhone SE, Safari desktop) and Chromium 131 (Pixel 7, Galaxy S9+): menu, Discord link, feedback form, practice game, lobby, role reveal, no JS errors. **5/5 pass.** Firefox could not be started on this PC (Playwright's Firefox build fails with a Windows side-by-side error), so test Firefox by hand once.
+
+| # | Severity | Area | Finding | Status |
+|---|---|---|---|---|
+| 12 | Medium | Client menu (phones) | The top menu was cut off (Discord/sound buttons off screen) at 320-359 px (iPhone SE, Galaxy S9+) and 401-479 px (Pixel 7). | **Fixed**: "Help" label up to 480 px, tighter spacing below 360 px; fits from 320 px up. |
