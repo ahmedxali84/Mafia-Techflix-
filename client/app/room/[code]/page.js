@@ -17,6 +17,8 @@ import HowToPlay from '@/components/HowToPlay';
 import SoundToggle from '@/components/SoundToggle';
 import Avatar from '@/components/Avatar';
 import Icon from '@/components/Icon';
+import DiscordButton from '@/components/DiscordButton';
+import Feedback from '@/components/Feedback';
 import RoleIcon from '@/components/RoleIcon';
 import RoleTag from '@/components/RoleTag';
 import PlayerRow from '@/components/PlayerRow';
@@ -736,6 +738,8 @@ function GameOver({ state }) {
             ? <button className="b b-primary b-xl" onClick={() => { play('click'); emit('play_again'); }}>Play again <Icon name="play" /></button>
             : <p className="dim"><span className="pulse-dot" /> Waiting for the host to start a new game</p>}
           <Link className="b b-ghost" href="/play"><Icon name="back" /> Menu</Link>
+          <Feedback page="game-over" gameId={state.gameId} label="Rate this game" />
+          <DiscordButton label="Find players on Discord" />
         </div>
       </section>
       <section className="panel cut">

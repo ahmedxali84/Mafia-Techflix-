@@ -2,6 +2,7 @@
 import { play } from '@/lib/sound';
 import Avatar from './Avatar';
 import Icon from './Icon';
+import DiscordButton from './DiscordButton';
 
 const CHANNEL = {
   public: { label: 'Town channel', note: 'Everyone hears you' },
@@ -27,6 +28,7 @@ export default function VoicePanel({ voice, state }) {
             <Icon name="headphones" /> {voice.joining ? 'Connecting…' : 'Join voice'}
           </button>
           {voice.error && <p className="err">{voice.error}</p>}
+          <DiscordButton variant="block" label="Prefer Discord? Join our server" />
         </div>
       </section>
     );

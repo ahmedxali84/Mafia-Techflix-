@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { play } from '@/lib/sound';
 import { gsap, reduced, charsIn } from '@/lib/anim';
+import DiscordButton from '@/components/DiscordButton';
 import Scene from '@/components/Scene';
 import { embers } from '@/components/Embers3D';
 import Chars from '@/components/Chars';
@@ -138,6 +139,7 @@ export default function Home() {
         <b className="wordmark">MAFIA</b>
         <div className="topbar-actions">
           <Link className="btn small" href="/play" onClick={enterTable}>Play</Link>
+          <DiscordButton variant="icon" className="icon-btn" />
           <SoundToggle />
           <button className="icon-btn" onClick={() => setHelp(true)} aria-label="How to play" title="How to play">❔</button>
         </div>

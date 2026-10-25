@@ -87,6 +87,11 @@
 .b-lg { height: 52px; font-size: 1.12rem; }
 .b-xl { --c: 14px; height: 60px; padding: 0 36px; font-size: 1.35rem; letter-spacing: 0.12em; }
 .b-block { width: 100%; }
+/* Discord (community link): Discord's blurple */
+.b-discord { --edge: #7983f5; --fill: linear-gradient(180deg, #5865f2, #4450d6); color: #fff; text-decoration: none; }
+.b-discord:hover { --edge: #9aa2ff; --fill: linear-gradient(180deg, #6873f5, #4c58e0); }
+.b-discord-icon { color: #8b94ff; text-decoration: none; }
+.b-discord-icon:hover { --edge: #5865f2; color: #fff; }
 .b:disabled { --edge: var(--line); --fill: rgba(255, 235, 228, 0.025); color: var(--faint); cursor: not-allowed; filter: none; }
 .hud-btn { --c: 7px; --edge: var(--line2); --fill: rgba(26, 11, 13, 0.95); display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 0; color: var(--text); font-size: 1.15rem; cursor: pointer; }
 .hud-btn:hover { --edge: rgba(211, 32, 42, 0.7); }
@@ -615,4 +620,31 @@
   /* Blurring what scrolls behind a sticky bar is expensive on phones; the bars are near-opaque anyway */
   .menubar, .hud, .dlg-back { backdrop-filter: none; -webkit-backdrop-filter: none; }
   .menubar { background: rgba(7, 4, 5, 0.97); }
+}
+
+/* Feedback dialog (components/Feedback.js) */
+.dlg.fb { width: min(440px, 100%); }
+.fb-stars { display: flex; align-items: center; gap: 6px; }
+.fb-star { width: 44px; height: 44px; border: 0; background: none; font-size: 2rem; line-height: 1; color: rgba(255, 235, 228, 0.18); cursor: pointer; transition: color 0.12s, transform 0.12s; }
+.fb-star.on { color: var(--gold); text-shadow: 0 0 14px rgba(230, 180, 80, 0.45); }
+.fb-star:hover { transform: scale(1.12); }
+.fb-label { margin-left: 6px; color: var(--muted); font: 600 0.95rem var(--font-hud); text-transform: uppercase; letter-spacing: 0.1em; }
+.fb-text { height: auto; min-height: 96px; padding: 10px 14px; resize: vertical; }
+.fb-count { align-self: flex-end; margin-top: -8px; }
+.fb-done { display: grid; justify-items: center; gap: 10px; padding: 10px 0 4px; text-align: center; }
+.fb-done > .ic { font-size: 2.2rem; color: #6fcf86; }
+.menu-fb { background: none; border: 0; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+/* Phones: the menu bar also holds Feedback + Discord, so Feedback becomes an icon and items tighten. */
+@media (max-width: 560px) {
+  .menu-nav a, .menu-nav button { white-space: nowrap; }
+  .menubar .fb-trigger-text { display: none; }
+  .menubar .menu-fb { padding: 0 11px; font-size: 1.05rem; }
+}
+/* "How to play" becomes "Help" on the smallest phones */
+.nav-short { display: none; }
+@media (max-width: 400px) {
+  .nav-long { display: none; }
+  .nav-short { display: inline; }
+  .menu-nav a, .menu-nav button { padding: 0 6px; letter-spacing: 0.03em; font-size: 0.85rem; }
+  .menubar-end { gap: 4px; }
 }

@@ -42,3 +42,15 @@ Checked, no problem found:
 - Vote-out: stamp → whoosh as the card drops → thud.
 - Doctor save: shield ring + rising healing shimmer.
 - Every button / tab / menu link now clicks (`components/ClickSounds.js`), with no double sound where a button already had its own. Mute still silences everything.
+
+# Weeks 5-8 audit: 25 Oct 2026
+
+`npm test`: 92/92. Client production build passes.
+
+| # | Severity | Area | Finding | Status |
+|---|---|---|---|---|
+| 9 | Critical | Sockets `index.js` | A client sending `null` (or any non-object) as an event payload, e.g. `create_room(null)`, threw while destructuring and **crashed the whole server**, ending every room's game. Found by Hiban on branch `hiban` (19 Oct) but never merged, and the new live code still had it. | **Fixed**: Hiban's safe wrapper ported to all 17 client events; his tests added as `test/sockets.e2e.test.js`. |
+| 10 | Medium | Client menu (phones) | After adding Feedback + Discord to the menu bar, on a 375 px phone "How to play" wrapped to 3 lines and the Discord/sound buttons were pushed off screen. Found in our own Week 6 phone test. | **Fixed**: Feedback is an icon on phones, labels don't wrap, "How to play" reads "Help" on ≤400 px. Menu ends at 363 px (same as the live site). |
+| 11 | Low | Feedback dialog | Opened from the menu, the dialog inherited the nav-bar button styles (stars were 14 px). | **Fixed**: the dialog is rendered at page level (portal). |
+
+Not bugs (checked): headless Chrome can't go below 500 px wide on Windows, so its "phone" screenshots look cut off; the real phone checks were done with device emulation in the Browser pane.

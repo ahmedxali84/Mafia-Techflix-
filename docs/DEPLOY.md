@@ -40,6 +40,21 @@ Back in Render → `mafia-server` → Environment → `CLIENT_ORIGIN` = the Verc
    `node tests/addBots.js <CODE> 5 <render-url>`. Five fake players join and play.
 3. Start the game and play to Game over. Then run the [testing checklist](TESTING_CHECKLIST.md).
 
+## 5. Discord button and feedback form
+
+| Where | Variable | Value |
+|---|---|---|
+| Vercel | `NEXT_PUBLIC_DISCORD_URL` | Your invite, e.g. `https://discord.gg/abc123` (Server settings → Invites → never expires). Only `discord.gg/…` or `discord.com/invite/…` links are accepted; unset = Discord buttons hidden. Redeploy after setting it. |
+| Render | `FEEDBACK_TOKEN` | A long random secret. Read feedback with `curl -H "Authorization: Bearer <token>" https://<backend>/feedback`. Unset = nobody can read it over HTTP. |
+| Render | `FEEDBACK_FILE` | Optional path for the feedback file. The free Render disk is wiped on every deploy, so read/download feedback before redeploying (or add a Render disk). |
+
+## 6. Custom domain (optional)
+
+1. Buy the domain (e.g. Namecheap, Cloudflare).
+2. Vercel → Project → Settings → Domains → add `mafia.yourdomain.com`, then add the DNS record Vercel shows (CNAME `cname.vercel-dns.com`).
+3. Render → `CLIENT_ORIGIN` = `https://mafia.yourdomain.com,https://mafia-frontend-lyart.vercel.app` (both, comma separated), then redeploy.
+4. Open the new domain and play one game to check.
+
 ## Things to know
 
 - **Free Render sleeps** after ~15 min with no traffic. The first visit then takes 30–60 s. Run `checkServer.js` a few minutes before a demo or stream.
